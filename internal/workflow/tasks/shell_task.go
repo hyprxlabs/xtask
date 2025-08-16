@@ -52,6 +52,9 @@ func runShell(ctx TaskContext) *TaskResult {
 	case "python":
 		cmd = shells.PythonScriptContext(ctx.Context, ctx.Task.Run)
 
+	case "ruby":
+		cmd = shells.RubyScriptContext(ctx.Context, ctx.Task.Run)
+
 	default:
 		err := errors.New("Unsupported shell: " + ctx.Task.Uses)
 		return res.Fail(err)

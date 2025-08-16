@@ -13,6 +13,16 @@ tasks:
       echo "Hello Nurse"
     needs: [test]
 
+  bun:
+    uses: "bun"
+    run: console.log("Hello Bun")
+
+  ruby:
+    uses: "ruby"
+    run: |
+      puts "Hello Ruby"
+      puts "Car, #{ENV['AUTO']}, is ready to go!"
+
   ssh:
     uses: "ssh://server_admin@10.0.3.0"
     run: |

@@ -97,7 +97,7 @@ func DenoScript(script string) *exec.Cmd {
 		}
 	}
 
-	args := []string{"eval", "-A", "--allow-scripts", script}
+	args := []string{"eval", "--ext=ts", "--allow-scripts", script}
 	return exec.New("deno", args...)
 }
 
@@ -109,7 +109,7 @@ func DenoScriptContext(ctx context.Context, script string) *exec.Cmd {
 		}
 	}
 
-	args := []string{"eval", "-A", "--allow-scripts", script}
+	args := []string{"eval", "--ext=ts", "--allow-scripts", script}
 	cmd := &exec.Cmd{
 		Cmd: e.CommandContext(ctx, "deno", args...),
 	}
