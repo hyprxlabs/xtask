@@ -49,7 +49,9 @@ func (t *Tasks) UnmarshalYAML(value *yaml.Node) error {
 			return errors.New("expected mapping for task value")
 		}
 
-		var task TaskDef
+		task := &TaskDef{
+			Id: key,
+		}
 		if err := valueNode.Decode(&task); err != nil {
 			return err
 		}
@@ -59,7 +61,7 @@ func (t *Tasks) UnmarshalYAML(value *yaml.Node) error {
 			task.Name = &key
 		}
 
-		(*t)[key] = task
+		(*t)[key] = *task
 	}
 
 	return nil
@@ -145,13 +147,13 @@ func (t *Targets) UnmarshalYAML(value *yaml.Node) error {
 }
 
 type Workflow struct {
-	Imports        []ImportDef        `yaml:"imports,omitempty"`
-	Name           *string            `yaml:"name"`
-	Env            map[string]string  `yaml:"env,omitempty"`
-	Dotenv         []string           `yaml:"dotenv,omitempty"`
-	ExpandCommands bool               `yaml:"expand-commands,omitempty"`
-	Tasks          map[string]TaskDef `yaml:"tasks,omitempty"`
-	Targets        Targets            `yaml:"targets,omitempty"`
+	Imports        []ImportDef       `yaml:"imports,omitempty"`
+	Name           *string           `yaml:"name"`
+	Env            map[string]string `yaml:"env,omitempty"`
+	Dotenv         []string          `yaml:"dotenv,omitempty"`
+	ExpandCommands bool              `yaml:"expand-commands,omitempty"`
+	Tasks          Tasks             `yaml:"tasks,omitempty"`
+	Targets        Targets           `yaml:"targets,omitempty"`
 }
 
 type ImportDef struct {

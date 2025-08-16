@@ -47,18 +47,35 @@ func Run(tasksFile string, params Params) error {
 		return err
 	}
 
+	taskSet := []schema.TaskDef{}
+	if len(plan.Tasks) > 0 {
+		for _, task := range plan.Tasks {
+			taskSet = append(taskSet, task)
+		}
+	}
+
+	cycles := findCyclicalReferences(taskSet)
+	if len(cycles) > 0 {
+		println("Cyclical references found in tasks:")
+		for _, cycle := range cycles {
+			println(" - " + cycle.Id)
+		}
+
+		os.Exit(1)
+	}
+
 	tasks := []schema.TaskDef{}
 	if len(params.Tasks) == 0 {
 		params.Tasks = []string{"default"}
 	}
 
-	for _, taskName := range params.Tasks {
-		next, ok := plan.Tasks[taskName]
-		if ok {
-			tasks = append(tasks, next)
-		} else {
-			return errors.New("Task not found: " + taskName)
-		}
+	tasks, err = flattenTasks(params.Tasks, plan.Tasks, tasks)
+	if err != nil {
+		return err
+	}
+
+	if len(tasks) == 0 {
+		return errors.New("no tasks found to run")
 	}
 
 	ctx := WorkflowContext{
