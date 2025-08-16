@@ -1,0 +1,15 @@
+env:
+  AUTO: "tesla"
+
+tasks:
+  test:
+    uses: "pwsh"
+    run: |
+      Write-Host "Hello $($env:AUTO)"
+
+  ssh:
+    uses: "ssh://server_admin@10.0.3.0"
+    run: |
+      uptime
+      echo "${HOSTNAME} is up"
+      echo "Car, ${AUTO}, is ready to go!"

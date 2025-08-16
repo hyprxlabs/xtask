@@ -1,0 +1,8 @@
+[tools]
+go = "1.24.5"
+
+[tasks.build]
+run = """
+go build -o ./bin/xtask ./main.go
+cp ./bin/xtask "$HOME/.local/bin/xtask"
+"""
