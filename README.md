@@ -2,6 +2,9 @@
 
 A cross platform task runner.
 
+
+## Sample Yaml
+
 ```yaml
 env:
   ONE: "one"
@@ -22,8 +25,9 @@ tasks:
     uses: ssh://user@host
 ```
 
+## Sample Usage
+
 ```bash
 xtask build
 xtask ssh
 ```
-

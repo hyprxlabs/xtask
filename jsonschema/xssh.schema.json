@@ -1,0 +1,143 @@
+{
+    "$schema": "https://json-schema.org/draft-07/schema",
+    "$id": "xssh.schema.json",
+    "title": "xssh",
+    "description": "The xssh schema defines the structure for SSH hosts and meta data.",
+    "type": "object",
+    "properties": {
+        "hosts": {
+            "type": "object",
+            "patternProperties": {
+                "^[a-zA-Z0-9_-]+$": {
+                    "type": "string",
+                    "description": "Host name or IP address",
+                    "$ref": "#/definitions/host"
+                }
+            },
+            "description": "A map of host names or IP addresses"    
+        }
+    },
+    "definitions": {
+        "host": {
+            "type": "object",
+            "required": [
+                "host",
+                "user"
+            ],
+            "properties": {
+                
+                "host": {
+                    "type": "string",
+                    "description": "The name of the host"
+                },
+
+                "user": {
+                    "type": "string",
+                    "description": "The user to connect as"
+                },
+
+                "ip": {
+                    "oneOf": [
+                        {
+                            "type": "string",
+                            "format": "ipv4",
+                            "description": "The IPv4 address of the host"
+                        },
+                        {
+                            "type": "string",
+                            "format": "ipv6",
+                            "description": "The IPv6 address of the host"
+                        }
+                    ]
+                },
+
+                "os": {
+                    "type": "object",
+                    "properties": {
+                    
+                        "platform": {
+                            "oneOf": [
+                                {
+                                    "type": "string",
+                                    "enum": ["linux", "darwin", "windows"]
+                                },
+                                {
+                                    "type": "null"
+                                },
+                                {
+                                    "type": "string",
+                                    "description": "Custom platform string"
+                                }
+                            ]
+                        },
+
+                        "arch": {
+                            "oneOf": [
+                                {
+                                    "type": "string",
+                                    "enum": ["amd64", "arm64", "386"]
+                                },
+                                {
+                                    "type": "null"
+                                },
+                                {
+                                    "type": "string",
+                                    "description": "Custom architecture string"
+                                }
+                            ]
+                        },
+
+                        "codename": {
+                            "type": "string",
+                            "description": "The codename of the OS"
+                        },
+
+                        "variant": {
+                            "type": "string",
+                            "description": "The variant of the OS, e.g., 'Windows Server'"
+                        },
+
+                        "version": {
+                            "type": "string",
+                            "description": "The version of the OS"
+                        }
+
+                    }
+                },
+
+                "identity": {
+                    "type": "string",
+                    "description": "The identity file for SSH connections"
+                },
+
+                "password-name": {
+                    "type": "string",
+                    "description": "The environment variable that contains the password for SSH connections"
+                },
+                
+                "port": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 65535,
+                    "description": "The port number for the host"
+                },
+
+                "meta": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": ["string", "number", "boolean", "null", "array", "object"]
+                    },
+                    "description": "Additional metadata for the host"
+                },
+
+                "groups": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "description": "A list of groups the host belongs to"
+                }
+            }
+        }
+    }
+}

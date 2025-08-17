@@ -14,6 +14,14 @@ func flattenTasks(targets []string, tasks schema.Tasks, set []schema.TaskDef) ([
 			return nil, errors.New("Task not found: " + target)
 		}
 
+		if len(task.Needs) > 0 {
+			neededTasks, err := flattenTasks(task.Needs, tasks, set)
+			if err != nil {
+				return nil, err
+			}
+			set = neededTasks
+		}
+
 		added := false
 		for _, task2 := range set {
 			if task.Id == task2.Id {
@@ -24,14 +32,6 @@ func flattenTasks(targets []string, tasks schema.Tasks, set []schema.TaskDef) ([
 
 		if !added {
 			set = append(set, task)
-		}
-
-		if len(task.Needs) > 0 {
-			neededTasks, err := flattenTasks(task.Needs, tasks, set)
-			if err != nil {
-				return nil, err
-			}
-			set = neededTasks
 		}
 	}
 

@@ -9,7 +9,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-type Targets map[string]SshTarget
+type Hosts map[string]SshTarget
 type Tasks map[string]TaskDef
 
 func (t *Tasks) UnmarshalYAML(value *yaml.Node) error {
@@ -67,9 +67,9 @@ func (t *Tasks) UnmarshalYAML(value *yaml.Node) error {
 	return nil
 }
 
-func (t *Targets) UnmarshalYAML(value *yaml.Node) error {
+func (t *Hosts) UnmarshalYAML(value *yaml.Node) error {
 	if (*t) == nil {
-		*t = make(Targets)
+		*t = make(Hosts)
 	}
 
 	if value.Kind == yaml.ScalarNode {
@@ -153,7 +153,15 @@ type Workflow struct {
 	Dotenv         []string          `yaml:"dotenv,omitempty"`
 	ExpandCommands bool              `yaml:"expand-commands,omitempty"`
 	Tasks          Tasks             `yaml:"tasks,omitempty"`
-	Targets        Targets           `yaml:"targets,omitempty"`
+	Hosts          Hosts             `yaml:"hosts,omitempty"`
+	Shell          string            `yaml:"shell,omitempty"`
+	Path           *Path             `yaml:"path,omitempty"`
+}
+
+type Path struct {
+	Win   []string `yaml:"win,omitempty"`
+	Posix []string `yaml:"posix,omitempty"`
+	Macos []string `yaml:"macos,omitempty"`
 }
 
 type ImportDef struct {

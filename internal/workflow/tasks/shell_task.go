@@ -3,7 +3,9 @@ package tasks
 import (
 	"runtime"
 	"strconv"
+	"strings"
 
+	"github.com/hyprxlabs/go/cmdargs"
 	"github.com/hyprxlabs/go/exec"
 
 	"github.com/hyprxlabs/xtasks/internal/errors"
@@ -23,37 +25,65 @@ func runShell(ctx TaskContext) *TaskResult {
 
 	var cmd *exec.Cmd
 
+	run := ctx.Task.Run
+	splat := ctx.Task.Args
+
 	switch ctx.Task.Uses {
 	case "bash":
-		cmd = shells.BashScript(ctx.Task.Run)
+		if len(splat) > 0 {
+			r := strings.TrimSpace(run)
+			nargs := cmdargs.New([]string{r})
+			nargs.Append(splat...)
+			run = nargs.String()
+		}
+
+		cmd = shells.BashScriptContext(ctx.Context, run)
 
 	case "powershell":
+		if len(splat) > 0 {
+			r := strings.TrimSpace(run)
+			nargs := cmdargs.New([]string{r})
+			nargs.Append(splat...)
+			run = nargs.String()
+		}
 		if runtime.GOOS != "windows" {
-			cmd = shells.PwshScript(ctx.Task.Run)
+			cmd = shells.PwshScriptContext(ctx.Context, run)
 		} else {
-			cmd = shells.PowerShellScript(ctx.Task.Run)
+			cmd = shells.PowerShellScriptContext(ctx.Context, run)
 		}
 
 	case "sh":
-		cmd = shells.ShScriptContext(ctx.Context, ctx.Task.Run)
+		if len(splat) > 0 {
+			r := strings.TrimSpace(run)
+			nargs := cmdargs.New([]string{r})
+			nargs.Append(splat...)
+			run = nargs.String()
+		}
+		cmd = shells.ShScriptContext(ctx.Context, run)
 
 	case "pwsh":
-		cmd = shells.PwshScriptContext(ctx.Context, ctx.Task.Run)
+		if len(splat) > 0 {
+			r := strings.TrimSpace(run)
+			nargs := cmdargs.New([]string{r})
+			nargs.Append(splat...)
+			run = nargs.String()
+		}
+		cmd = shells.PwshScriptContext(ctx.Context, run)
 
 	case "deno":
-		cmd = shells.DenoScriptContext(ctx.Context, ctx.Task.Run)
+		cmd = shells.DenoScriptContext(ctx.Context, run)
 
 	case "node":
-		cmd = shells.NodeScriptContext(ctx.Context, ctx.Task.Run)
+		cmd = shells.NodeScriptContext(ctx.Context, run)
 
 	case "bun":
-		cmd = shells.BunScriptContext(ctx.Context, ctx.Task.Run)
+		cmd = shells.BunScriptContext(ctx.Context, run)
 
 	case "python":
-		cmd = shells.PythonScriptContext(ctx.Context, ctx.Task.Run)
+		cmd = shells.PythonScriptContext(ctx.Context, run)
 
 	case "ruby":
-		cmd = shells.RubyScriptContext(ctx.Context, ctx.Task.Run)
+		cmd = shells.RubyScriptContext(ctx.Context, run)
 
 	default:
 		err := errors.New("Unsupported shell: " + ctx.Task.Uses)

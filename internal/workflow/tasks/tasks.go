@@ -13,7 +13,7 @@ import (
 type TaskContext struct {
 	Task    Task
 	TaskDef schema.TaskDef
-	Targets schema.Targets
+	Targets schema.Hosts
 	Context context.Context
 }
 

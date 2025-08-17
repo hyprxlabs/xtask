@@ -1,0 +1,283 @@
+{
+    "$schema": "https://json-schema.org/draft-07/schema",
+    "$id": "xtask.schema.json",
+    "title": "XTask",
+    "description": "A task in the xtaskfile",
+    "type": "object",
+    "properties": {
+        "name": {
+            "type": "string",
+            "description": "The name of the task"
+        },
+        "description": {
+            "type": "string",
+            "description": "A brief description of the task"
+        },
+        "shell": {
+            "type": "string",
+            "enum": [
+                "bash",
+                "pwsh",
+                "powershell",
+                "sh"
+            ],
+            "description": "The shell to use for the task"
+        },
+        "env": {
+            "type": "object",
+            "additionalProperties": {
+                "type": "string"
+            },
+            "description": "Environment variables to set for the command"
+        },
+        "dotenv": {
+            "type":"array",
+            "items": {
+                "type": "string"
+            },
+            "description": "A list of .env files to load before running the task"
+        },
+        "ssh": {
+            "hosts": {
+                "oneOf": [
+                    {
+                        "type": "object",
+                        "patternProperties": {
+                            "^[a-zA-Z0-9_-]+$": {
+                                "oneOf": [
+                                    {
+                                        "type": "string",
+                                        "description": "Host in the format of 'user@host[:port]'"
+                                    },
+                                    {
+                                        "type": "object",
+                                        "$ref": "#/definitions/host"
+                                    }
+                                ]
+                            }
+                        },
+                        "description": "A map of host names or IP addresses"
+                    }
+                ]
+            },
+            "files": {
+                "type": "array",
+                "items": {
+                    "type": "string"
+                },
+                "description": "xsshfile files to include in the task context"
+            }
+        },
+       
+        "tasks": {
+            "type": "object",
+            "patternProperties": {
+                "^[a-zA-Z0-9_-]+$": {
+                   "oneOf": [
+                        {
+                            "type": "string",
+                            "description": "A task name that refers to another task"
+                        },
+                        {
+                            "$ref": "#/definitions/task"
+                        }
+                    ]
+                }
+            },
+            "description": "A map of task names to task definitions"
+        }
+    },
+    "definitions": {
+        "task": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "description": "The name of the task"
+                },
+                "desc": {
+                    "type": "string",
+                    "description": "A brief description of the task"
+                },
+                "env": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    },
+                    "description": "Environment variables to set for the command"
+                },
+                "dotenv": {
+                    "type":"array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "description": ".env files to load before running the task"
+                },
+                "uses": {
+                    "oneOf": [
+                        {
+                            "type": "string",
+                            "enum": [
+                                "bash",
+                                "pwsh",
+                                "python",
+                                "node",
+                                "bun",
+                                "deno",
+                                "ruby",
+                                "ssh",
+                                "scp",
+                                "docker"
+                            ],
+                            "description": "The type of command to run"
+                        },
+                        {
+                            "type": "string",
+                            "description": "A custom command to run, e.g., a script or executable",
+                            "pattern": "^(scp?|ssh?|docker)://.*"
+                        }
+                    ]
+                },
+                "run": {
+                    "type": "string",
+                    "description": "The command to run for this task"
+                },
+                "timeout": {
+                    "type": "string",
+                    "pattern": "^[0-9]+(s|m|h)?$",
+                    "description": "Timeout in seconds for the task (e.g., '30s', '2m', '1h')"
+                },
+                "needs": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "pattern": "^[a-zA-Z0-9_-]+$"
+                    },
+                    "description": "A list of tasks that this task depends on"
+                },
+                "files": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "description": "Files to include in the task context"
+                },
+                "hosts": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "pattern": "^[a-zA-Z0-9_-]+$"
+                    },
+                    "description": "A list of the names of hosts to run this task on"
+                }
+            }
+        },
+        "host": {
+            "type": "object",
+            "required": [
+                "host",
+                "user"
+            ],
+            "properties": {
+                "host": {
+                    "type": "string",
+                    "description": "The name of the host"
+                },
+                "user": {
+                    "type": "string",
+                    "description": "The user to connect as"
+                },
+                "os": {
+                    "type": "object",
+                    "properties": {
+                        "platform": {
+                            "oneOf": [
+                                {
+                                    "type": "string",
+                                    "enum": [
+                                        "linux",
+                                        "darwin",
+                                        "windows"
+                                    ]
+                                },
+                                {
+                                    "type": "null"
+                                },
+                                {
+                                    "type": "string",
+                                    "description": "Custom platform string"
+                                }
+                            ]
+                        },
+                        "arch": {
+                            "oneOf": [
+                                {
+                                    "type": "string",
+                                    "enum": [
+                                        "amd64",
+                                        "arm64",
+                                        "386"
+                                    ]
+                                },
+                                {
+                                    "type": "null"
+                                },
+                                {
+                                    "type": "string",
+                                    "description": "Custom architecture string"
+                                }
+                            ]
+                        },
+                        "codename": {
+                            "type": "string",
+                            "description": "The codename of the OS"
+                        },
+                        "variant": {
+                            "type": "string",
+                            "description": "The variant of the OS, e.g., 'Windows Server'"
+                        },
+                        "version": {
+                            "type": "string",
+                            "description": "The version of the OS"
+                        }
+                    }
+                },
+                "identity": {
+                    "type": "string",
+                    "description": "The identity file for SSH connections"
+                },
+                "password-name": {
+                    "type": "string",
+                    "description": "The environment variable that contains the password for SSH connections"
+                },
+                "port": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 65535,
+                    "description": "The port number for the host"
+                },
+                "meta": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": [
+                            "string",
+                            "number",
+                            "boolean",
+                            "null",
+                            "array",
+                            "object"
+                        ]
+                    },
+                    "description": "Additional metadata for the host"
+                },
+                "groups": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "description": "A list of groups the host belongs to"
+                }
+            }
+        }
+    }
+}

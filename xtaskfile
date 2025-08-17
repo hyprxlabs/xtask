@@ -1,16 +1,41 @@
 env:
   AUTO: "tesla"
 
+dotenv: [".env"]
+
+shell: "bash"
+
 tasks:
+
   test:
     uses: "pwsh"
     run: |
       Write-Host "Hello $($env:AUTO)"
 
+  echo: "echo"
+
+  set-env:
+    uses: "bash"
+    run: |
+      echo "$XTASK_ENV"
+      echo "$XTASK_PATH"
+      echo 'NEW_VAR=Hello World' >> $XTASK_ENV
+      echo 'SECOND_VAR=Hello Again' >> $XTASK_ENV
+      echo "$HOME/.local/bin" >> $XTASK_PATH
+
+  view-env:
+    uses: "bash"
+    run: |
+      echo "Environment Variables:"
+      echo "$NEW_VAR"
+      echo "$SECOND_VAR"
+      echo "PATH: $PATH"
+    needs: [set-env]
+
   default:
     uses: "bash"
     run: |
-      echo "Hello Nurse"
+      echo "Hello Nurse from $ENV_TEST"
     needs: [test]
 
   bun:
@@ -24,8 +49,12 @@ tasks:
       puts "Car, #{ENV['AUTO']}, is ready to go!"
 
   ssh:
-    uses: "ssh://server_admin@10.0.3.0"
+    uses: "ssh://user@10.0.6.0"
     run: |
       uptime
       echo "${HOSTNAME} is up"
       echo "Car, ${AUTO}, is ready to go!"
+
+  docker:
+    uses: "docker"
+    run: test/test # This is a comment
