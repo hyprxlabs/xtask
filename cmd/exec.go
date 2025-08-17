@@ -14,7 +14,7 @@ import (
 
 // execCmd represents the exec command
 var execCmd = &cobra.Command{
-	Use:   "exec",
+	Use:   "exec [flags] [command] [args]",
 	Short: "executes a command using the environment variables configured in the xtaskfile",
 	Long: `Executes a command using the environment variables configured in the xtaskfile
 	and does not run any tasks.`,
@@ -61,6 +61,15 @@ var execCmd = &cobra.Command{
 			file = "./xtaskfile"
 		}
 
+		if len(remainingArgs) == 0 {
+			println("No command provided to exec.")
+			cmd.Help()
+			os.Exit(1)
+		}
+
+		dotenvFiles, _ := flags.GetStringArray("dotenv")
+		envMap, _ := flags.GetStringToString("env")
+
 		err = workflow.Run(workflow.Params{
 			Args:                remainingArgs,
 			Tasks:               []string{"default"},
@@ -69,6 +78,8 @@ var execCmd = &cobra.Command{
 			Context:             cmd.Context(),
 			Command:             "exec",
 			File:                file,
+			Dotenv:              dotenvFiles,
+			Env:                 envMap,
 		})
 
 		if err != nil {
@@ -84,7 +95,8 @@ func init() {
 	rootCmd.AddCommand(execCmd)
 	flags := execCmd.Flags()
 	flags.StringP("file", "f", "", "Path to the xtaskfile (default is ./xtaskfile)")
-
+	flags.StringArrayP("dotenv", "d", []string{}, "List of dotenv files to load")
+	flags.StringToStringP("env", "e", nil, "Environment variables to set for the command")
 	// Here you will define your flags and configuration settings.
 
 	// Cobra supports Persistent Flags which will work for this command

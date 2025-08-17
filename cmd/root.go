@@ -28,7 +28,6 @@ to quickly create a Cobra application.`,
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
 	args := os.Args
-
 	commands := []string{"run", "ls", "exec"}
 	if len(args) == 1 {
 		rootCmd.SetArgs([]string{"run"})
@@ -38,7 +37,18 @@ func Execute() {
 			if flag == "--help" || flag == "-h" || flag == "-v" || flag == "--version" {
 				rootCmd.SetArgs([]string{flag})
 			} else {
-				rootCmd.SetArgs([]string{"run"}) // Default to 'run' if no command is specified
+				validCommand := false
+				for _, cmd := range commands {
+					if flag == cmd {
+						rootCmd.SetArgs([]string{cmd})
+						validCommand = true
+						break
+					}
+				}
+
+				if !validCommand {
+					rootCmd.SetArgs([]string{"run", flag})
+				}
 			}
 		} else {
 			first := args[1]
