@@ -6,7 +6,7 @@ package cmd
 import (
 	"os"
 
-	"github.com/hyprxlabs/xtasks/internal/workflow"
+	"github.com/hyprxlabs/task/internal/workflow"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )

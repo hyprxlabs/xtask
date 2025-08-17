@@ -9,8 +9,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/hyprxlabs/xtasks/internal/errors"
-	"github.com/hyprxlabs/xtasks/internal/schema"
+	"github.com/hyprxlabs/task/internal/errors"
+	"github.com/hyprxlabs/task/internal/schema"
 	goph "github.com/melbahja/goph"
 	"golang.org/x/crypto/ssh"
 )

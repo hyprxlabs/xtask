@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/hyprxlabs/xtasks/internal/workflow"
+	"github.com/hyprxlabs/task/internal/workflow"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
@@ -20,7 +20,7 @@ var execCmd = &cobra.Command{
 	and does not run any tasks.`,
 	DisableFlagParsing: true,
 	Run: func(cmd *cobra.Command, a []string) {
-		// xtasks exec
+		// task exec
 		args := os.Args[2:]
 		flags := pflag.NewFlagSet("", pflag.ContinueOnError)
 

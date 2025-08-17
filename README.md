@@ -6,7 +6,7 @@ A cross platform task runner.
 
 Schema for xtaskfile is available at [jsonschema/xtask.schema.json](jsonschema/xtask.schema.json).
 
-It is also availble using <https://raw.githubusercontent.com/hyprxlabs/xtask/refs/heads/main/jsonschema/xtask.schema.json>
+It is also availble using <https://raw.githubusercontent.com/hyprxlabs/xtask/refs/heads/main/jsonschema/xtask.schema.json>.
 
 ```yaml
 env:

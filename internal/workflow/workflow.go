@@ -14,8 +14,8 @@ import (
 	"github.com/hyprxlabs/go/dotenv"
 	"github.com/hyprxlabs/go/env"
 	"github.com/hyprxlabs/go/exec"
-	"github.com/hyprxlabs/xtasks/internal/schema"
-	"github.com/hyprxlabs/xtasks/internal/workflow/tasks"
+	"github.com/hyprxlabs/task/internal/schema"
+	"github.com/hyprxlabs/task/internal/workflow/tasks"
 	"gopkg.in/yaml.v3"
 )
 

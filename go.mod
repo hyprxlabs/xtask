@@ -1,4 +1,4 @@
-module github.com/hyprxlabs/xtasks
+module github.com/hyprxlabs/task
 
 go 1.24.5
 
