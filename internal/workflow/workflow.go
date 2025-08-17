@@ -155,38 +155,22 @@ func Run(params Params) error {
 	// to c:\\Program Files\\Git\\bin gets appended at the end of the PATH
 	// everytime git is installed or updated
 	if runtime.GOOS == "windows" {
-		if ctx.Shell == "bash" || ctx.Shell == "sh" {
-			if ctx.Shell == "bash" {
-				path, _ := exec.Which("bash")
-				if path != "" && strings.EqualFold("C:\\Windows\\System32\\bash.exe", path) {
-					gitBin := "C:\\Program Files\\Git\\bin"
-					if _, err := os.Stat(gitBin); err == nil {
-						env.PrependPath(gitBin)
-					}
 
-					// handle the case where OpenSSH is installed
-					// and needs to be preended above git to avoid using
-					// the git version of ssh.exe.
-					openSSH := "C:\\Program Files\\OpenSSH"
-					if _, err := os.Stat(openSSH); err == nil {
-						env.PrependPath(openSSH)
-					}
-				}
+		path, _ := exec.Which("bash")
+		if path != "" &&
+			strings.EqualFold("C:\\Windows\\System32\\bash.exe", path) ||
+			strings.Contains(path, "WindowsApps\\bash.exe") {
+			gitBin := "C:\\Program Files\\Git\\bin"
+			if _, err := os.Stat(gitBin); err == nil {
+				env.PrependPath(gitBin)
 			}
 
-			if ctx.Shell == "sh" {
-				gitBin := "C:\\Program Files\\Git\\bin"
-				if _, err := os.Stat(gitBin); err == nil {
-					env.PrependPath(gitBin)
-				}
-
-				// handle the case where OpenSSH is installed
-				// and needs to be preended above git to avoid using
-				// the git version of ssh.exe.
-				openSSH := "C:\\Program Files\\OpenSSH"
-				if _, err := os.Stat(openSSH); err == nil {
-					env.PrependPath(openSSH)
-				}
+			// handle the case where OpenSSH is installed
+			// and needs to be preended above git to avoid using
+			// the git version of ssh.exe.
+			openSSH := "C:\\Program Files\\OpenSSH"
+			if _, err := os.Stat(openSSH); err == nil {
+				env.PrependPath(openSSH)
 			}
 		}
 	}
