@@ -21,7 +21,16 @@ var execCmd = &cobra.Command{
 	DisableFlagParsing: true,
 	Run: func(cmd *cobra.Command, a []string) {
 		// task exec
-		args := os.Args[2:]
+
+		args := os.Args
+		if len(args) > 0 {
+			// always will be the cli command
+			args = args[1:]
+			if len(args) > 0 && args[0] == "exec" {
+				args = args[1:]
+			}
+		}
+
 		flags := pflag.NewFlagSet("", pflag.ContinueOnError)
 
 		cmdArgs := []string{}

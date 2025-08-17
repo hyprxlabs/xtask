@@ -27,9 +27,8 @@ to quickly create a Cobra application.`,
 		args := os.Args
 
 		if len(args) > 0 {
-			if args[0] == "xtask" {
-				args = args[1:]
-			}
+			// always will be the cli command
+			args = args[1:]
 
 			if len(args) > 0 && args[0] == "run" {
 				args = args[1:]
