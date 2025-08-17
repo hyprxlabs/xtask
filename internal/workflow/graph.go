@@ -3,7 +3,7 @@ package workflow
 import (
 	"errors"
 
-	"github.com/hyprxlabs/task/internal/schema"
+	"github.com/hyprxlabs/xtask/internal/schema"
 )
 
 func flattenTasks(targets []string, tasks schema.Tasks, set []schema.TaskDef) ([]schema.TaskDef, error) {

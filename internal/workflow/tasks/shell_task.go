@@ -8,8 +8,8 @@ import (
 	"github.com/hyprxlabs/go/cmdargs"
 	"github.com/hyprxlabs/go/exec"
 
-	"github.com/hyprxlabs/task/internal/errors"
-	"github.com/hyprxlabs/task/internal/shells"
+	"github.com/hyprxlabs/xtask/internal/errors"
+	"github.com/hyprxlabs/xtask/internal/shells"
 )
 
 func runShell(ctx TaskContext) *TaskResult {

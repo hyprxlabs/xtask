@@ -5,9 +5,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hyprxlabs/task/internal/errors"
-	"github.com/hyprxlabs/task/internal/schema"
-	"github.com/hyprxlabs/task/internal/workflow/statuses"
+	"github.com/hyprxlabs/xtask/internal/errors"
+	"github.com/hyprxlabs/xtask/internal/schema"
+	"github.com/hyprxlabs/xtask/internal/workflow/statuses"
 )
 
 type TaskContext struct {

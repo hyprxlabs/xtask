@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/hyprxlabs/task/internal/workflow"
+	"github.com/hyprxlabs/xtask/internal/workflow"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )

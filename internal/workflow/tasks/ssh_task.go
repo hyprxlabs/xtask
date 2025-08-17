@@ -7,8 +7,8 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/hyprxlabs/task/internal/errors"
-	"github.com/hyprxlabs/task/internal/schema"
+	"github.com/hyprxlabs/xtask/internal/errors"
+	"github.com/hyprxlabs/xtask/internal/schema"
 	goph "github.com/melbahja/goph"
 	"golang.org/x/crypto/ssh"
 )
