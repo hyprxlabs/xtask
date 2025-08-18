@@ -1,15 +1,16 @@
 env:
   AUTO: "tesla"
+  XTASK_POWERSHELL_EXE: /usr/bin/pwsh
 
 dotenv: [".env"]
 
 shell: "bash"
 
 tasks:
-
   test:
-    uses: "pwsh"
+    uses: "powershell"
     run: |
+      echo "$XTASK_POWERSHELL_EXE"
       Write-Host "Hello $($env:AUTO)"
 
   echo: "echo"
@@ -32,6 +33,12 @@ tasks:
       echo "PATH: $PATH"
     needs: [set-env]
 
+  validate-cwd:
+    uses: "bash"
+    run: |
+      echo "$PWD"
+    cwd: "${XTASK_DIR}/local"
+
   default:
     uses: "bash"
     run: |
@@ -47,6 +54,11 @@ tasks:
     run: |
       puts "Hello Ruby"
       puts "Car, #{ENV['AUTO']}, is ready to go!"
+
+  python:
+    uses: "python"
+    run: |
+      print("Hello Python")
 
   ssh:
     uses: "ssh://user@10.0.6.0"

@@ -22,6 +22,7 @@ type Task struct {
 	Name    string
 	Desc    string
 	Env     map[string]string
+	XEnv    map[string]string
 	Run     string
 	Uses    string
 	Targets []string

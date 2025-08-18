@@ -149,39 +149,22 @@ func Run(params Params) error {
 		Shell:   plan.Shell,
 	}
 
-	// handle the special case of windows causing max pain when using bash
-	// by injecting a shim of bash.exe that maps to WSL and c:\\Windows\\System32\\bash.exe
-	// is generally higher in the PATH prority than the git and the path
-	// to c:\\Program Files\\Git\\bin gets appended at the end of the PATH
-	// everytime git is installed or updated
-	if runtime.GOOS == "windows" {
-
-		path, _ := exec.Which("bash")
-		if path != "" &&
-			strings.EqualFold("C:\\Windows\\System32\\bash.exe", path) ||
-			strings.Contains(path, "WindowsApps\\bash.exe") {
-			gitBin := "C:\\Program Files\\Git\\bin"
-			if _, err := os.Stat(gitBin); err == nil {
-				env.PrependPath(gitBin)
-			}
-
-			// handle the case where OpenSSH is installed
-			// and needs to be preended above git to avoid using
-			// the git version of ssh.exe.
-			openSSH := "C:\\Program Files\\OpenSSH"
-			if _, err := os.Stat(openSSH); err == nil {
-				env.PrependPath(openSSH)
-			}
-		}
-	}
-
 	doc := dotenv.NewDocument()
 
 	if len(plan.Dotenv) > 0 {
 		for _, file := range plan.Dotenv {
+			required := true
+			if file[len(file)-1] == '?' {
+				file = file[:len(file)-1]
+				required = false
+			}
+
 			data, err := os.ReadFile(file)
 			if err != nil {
-				return err
+				if required {
+					return err
+				}
+				continue
 			}
 			nextDoc, err := dotenv.Parse(string(data))
 			if err != nil {
@@ -200,9 +183,17 @@ func Run(params Params) error {
 	// params must override the plan's dotenv and env
 	if len(params.Dotenv) > 0 {
 		for _, file := range params.Dotenv {
+			required := true
+			if file[len(file)-1] == '?' {
+				file = file[:len(file)-1]
+				required = false
+			}
 			data, err := os.ReadFile(file)
 			if err != nil {
-				return err
+				if required {
+					return err
+				}
+				continue
 			}
 			nextDoc, err := dotenv.Parse(string(data))
 			if err != nil {
@@ -224,6 +215,21 @@ func Run(params Params) error {
 	ctx.Env["XTASK_FILE"] = tasksFile
 	ctx.Env["XTASK_DIR"] = filepath.Dir(tasksFile)
 	ctx.Env["XTASK_SHELL"] = ctx.Shell
+
+	paths := env.Get("XTASK_PREPEND_PATH")
+	if paths != "" {
+		if runtime.GOOS == "windows" {
+			segs := strings.Split(paths, ";")
+			for _, seg := range segs {
+				env.PrependPath(seg)
+			}
+		} else {
+			segs := strings.Split(paths, ":")
+			for _, seg := range segs {
+				env.PrependPath(seg)
+			}
+		}
+	}
 
 	if _, ok := ctx.Env["XTASK_ENV"]; !ok {
 		f, err := os.CreateTemp("", "xtask-env-")
@@ -296,7 +302,17 @@ func Run(params Params) error {
 				key = *node.Key
 			}
 
-			if strings.HasPrefix("XTASK", key) {
+			key = strings.TrimSpace(key)
+
+			if strings.HasPrefix(key, "XTASK_") {
+				if strings.HasSuffix(key, "_EXE") {
+					value, err := env.ExpandWithOptions(value, options)
+					if err != nil {
+						return err
+					}
+					env.Set(key, value)
+				}
+
 				continue
 			}
 
@@ -309,6 +325,19 @@ func Run(params Params) error {
 	}
 
 	ctx.Env[env.PATH] = envPath
+
+	if runtime.GOOS == "windows" {
+		gitBin := env.Get("XTASK_GIT_BIN")
+		if gitBin == "" {
+			gitBin = ctx.Env["XTASK_GIT_BIN"]
+		}
+
+		if gitBin != "" {
+			if _, err := os.Stat(gitBin); err == nil {
+				env.AppendPath(gitBin)
+			}
+		}
+	}
 
 	ctx.Schema = plan
 	ctx.Tasks = tasks
@@ -360,22 +389,27 @@ func runTasks(ctx WorkflowContext) error {
 			cwd = ctx.Cwd
 		}
 
-		if strings.ContainsRune(cwd, '$') {
-			cwd, _ = env.Expand(cwd)
-		}
-
 		doc := dotenv.NewDocument()
 
 		envMap := make(map[string]string)
+		xenvMap := make(map[string]string)
 		for key, value := range ctx.Env {
 			envMap[key] = value
 		}
 
 		if len(taskDef.Dotenv) > 0 {
 			for _, denv := range taskDef.Dotenv {
+				required := true
+				if denv[len(denv)-1] == '?' {
+					denv = denv[:len(denv)-1]
+					required = false
+				}
 				data, err := os.ReadFile(denv)
 				if err != nil {
-					return errors.New("Failed to read dotenv file: " + err.Error())
+					if required {
+						return errors.New("Failed to read dotenv file: " + err.Error())
+					}
+					continue
 				}
 				doc2, err := dotenv.Parse(string(data))
 				if err != nil {
@@ -420,7 +454,15 @@ func runTasks(ctx WorkflowContext) error {
 						key = *node.Key
 					}
 
-					if strings.HasPrefix("XTASK", key) {
+					if strings.HasPrefix(key, "XTASK_") {
+						if strings.HasSuffix(key, "_EXE") {
+							value, err := env.ExpandWithOptions(value, options)
+							if err != nil {
+								return errors.New("Failed to expand environment variable: " + err.Error())
+							}
+							xenvMap[key] = value
+						}
+
 						continue
 					}
 
@@ -446,6 +488,7 @@ func runTasks(ctx WorkflowContext) error {
 			Desc:    desc,
 			Uses:    uses,
 			Env:     envMap,
+			XEnv:    xenvMap,
 			Run:     run,
 			Targets: taskDef.Targets,
 			Cwd:     cwd,
@@ -490,6 +533,24 @@ func runTasks(ctx WorkflowContext) error {
 						return errors.New("Failed to parse XTASK_ENV file: " + err.Error())
 					}
 
+					opts := &env.ExpandOptions{
+						CommandSubstitution: ctx.Schema.ExpandCommands,
+						ShellArgs:           ctx.Args,
+						Get: func(key string) string {
+							if val, ok := task.Env[key]; ok {
+								return val
+							}
+							if val, ok := os.LookupEnv(key); ok {
+								return val
+							}
+							return ""
+						},
+						Set: func(key, value string) error {
+							task.Env[key] = value
+							return nil
+						},
+					}
+
 					for _, node := range doc2.ToArray() {
 						if node.Type == dotenv.VARIABLE_TOKEN {
 							key := ""
@@ -498,27 +559,19 @@ func runTasks(ctx WorkflowContext) error {
 								key = *node.Key
 							}
 
-							if strings.HasPrefix("XTASK", key) {
+							if strings.HasPrefix("XTASK_", key) {
+								if strings.HasSuffix(key, "_EXE") {
+									value, err := env.ExpandWithOptions(value, opts)
+									if err != nil {
+										return errors.New("Failed to expand environment variable: " + err.Error())
+									}
+									task.XEnv[key] = value
+								}
+
 								continue
 							}
 
-							value, err := env.ExpandWithOptions(value, &env.ExpandOptions{
-								CommandSubstitution: true,
-								ShellArgs:           ctx.Args,
-								Get: func(key string) string {
-									if val, ok := task.Env[key]; ok {
-										return val
-									}
-									if val, ok := os.LookupEnv(key); ok {
-										return val
-									}
-									return ""
-								},
-								Set: func(key, value string) error {
-									task.Env[key] = value
-									return nil
-								},
-							})
+							value, err := env.ExpandWithOptions(value, opts)
 							if err != nil {
 								return errors.New("Failed to expand environment variable: " + err.Error())
 							}
@@ -570,8 +623,48 @@ func runTasks(ctx WorkflowContext) error {
 			TaskDef: def,
 		}
 
+		oldMap := map[string]string{}
+		for key, value := range task.XEnv {
+			old := env.Get(key)
+			oldMap[key] = old
+			env.Set(key, value)
+		}
+
+		if strings.ContainsRune(task.Cwd, '$') {
+			opts := &env.ExpandOptions{
+				CommandSubstitution: ctx.Schema.ExpandCommands,
+				ShellArgs:           ctx.Args,
+				Get: func(key string) string {
+					if val, ok := task.Env[key]; ok {
+						return val
+					}
+					if val, ok := os.LookupEnv(key); ok {
+						return val
+					}
+					return ""
+				},
+				Set: func(key, value string) error {
+					task.Env[key] = value
+					return nil
+				},
+			}
+			cwd, _ := env.ExpandWithOptions(task.Cwd, opts)
+			if cwd == "" {
+				cwd = ctx.Cwd
+			}
+			c.Task.Cwd = cwd
+		}
+
 		println("\x1b[1m" + task.Name + "\x1b[22m")
 		res := tasks.Run(*c)
+		for key, value := range oldMap {
+			if value == "" {
+				env.Unset(key)
+			} else {
+				env.Set(key, value)
+			}
+		}
+
 		if res.Err != nil {
 			return res.Err
 		}
@@ -585,10 +678,21 @@ func execCommand(plan *schema.Workflow, params Params) {
 	doc := dotenv.NewDocument()
 	if len(plan.Dotenv) > 0 {
 		for _, file := range plan.Dotenv {
+			// get last character of file
+			required := true
+			if file[len(file)-1] == '?' {
+				required = false
+				file = file[:len(file)-1]
+			}
+
 			data, err := os.ReadFile(file)
 			if err != nil {
-				println("Failed to read dotenv file:", err)
-				os.Exit(1)
+				if required {
+					println("Failed to read dotenv file:", err)
+					os.Exit(1)
+				} else {
+					continue
+				}
 			}
 			nextDoc, err := dotenv.Parse(string(data))
 			if err != nil {
@@ -608,10 +712,20 @@ func execCommand(plan *schema.Workflow, params Params) {
 	// params must override the plan's dotenv and env
 	if len(params.Dotenv) > 0 {
 		for _, file := range params.Dotenv {
+			required := true
+			if file[len(file)-1] == '?' {
+				file = file[:len(file)-1]
+				required = false
+			}
+
 			data, err := os.ReadFile(file)
 			if err != nil {
-				println("Failed to read dotenv file:", err)
-				os.Exit(1)
+				if required {
+					println("Failed to read dotenv file:", err)
+					os.Exit(1)
+				} else {
+					continue
+				}
 			}
 			nextDoc, err := dotenv.Parse(string(data))
 			if err != nil {

@@ -121,6 +121,8 @@
                                 "bash",
                                 "pwsh",
                                 "python",
+                                "powershell",
+                                "sh",
                                 "node",
                                 "bun",
                                 "deno",

@@ -4,16 +4,16 @@ package shells
 
 import (
 	"context"
+	"strings"
 
-	e "os/exec"
-
+	"github.com/hyprxlabs/go/cmdargs"
 	"github.com/hyprxlabs/go/exec"
 )
 
 func init() {
 	exec.Register("bash", &exec.Executable{
 		Name:     "bash",
-		Variable: "BASH_PATH",
+		Variable: "XTASK_BASH_EXE",
 		Linux: []string{
 			"/bin/bash",
 			"/usr/bin/bash",
@@ -22,7 +22,7 @@ func init() {
 
 	exec.Register("pwsh", &exec.Executable{
 		Name:     "pwsh",
-		Variable: "PWSH_PATH",
+		Variable: "XTASK_PWSH_EXE",
 		Linux: []string{
 			"/usr/bin/pwsh",
 			"/usr/local/bin/pwsh",
@@ -31,7 +31,7 @@ func init() {
 
 	exec.Register("powershell", &exec.Executable{
 		Name:     "powershell",
-		Variable: "POWERSHELL_PATH",
+		Variable: "XTASK_POWERSHELL_EXE",
 		Linux: []string{
 			"/usr/bin/pwsh",
 			"/usr/local/bin/pwsh",
@@ -40,7 +40,7 @@ func init() {
 
 	exec.Register("sh", &exec.Executable{
 		Name:     "sh",
-		Variable: "SH_PATH",
+		Variable: "XTASK_SH_EXE",
 		Linux: []string{
 			"/bin/sh",
 			"/usr/bin/sh",
@@ -49,7 +49,7 @@ func init() {
 
 	exec.Register("deno", &exec.Executable{
 		Name:     "deno",
-		Variable: "DENO_PATH",
+		Variable: "XTASK_DENO_EXE",
 		Linux: []string{
 			"${HOME}/.local/bin/deno",
 			"${HOME}/.deno/bin/deno",
@@ -60,7 +60,7 @@ func init() {
 
 	exec.Register("node", &exec.Executable{
 		Name:     "node",
-		Variable: "NODE_PATH",
+		Variable: "XTASK_NODE_EXE",
 		Linux: []string{
 			"/usr/bin/node",
 			"/usr/local/bin/node",
@@ -69,7 +69,7 @@ func init() {
 
 	exec.Register("bun", &exec.Executable{
 		Name:     "bun",
-		Variable: "BUN_PATH",
+		Variable: "XTASK_BUN_EXE",
 		Linux: []string{
 			"/usr/bin/bun",
 			"/usr/local/bin/bun",
@@ -78,7 +78,7 @@ func init() {
 
 	exec.Register("python", &exec.Executable{
 		Name:     "python",
-		Variable: "PYTHON_PATH",
+		Variable: "XTASK_PYTHON_EXE",
 		Linux: []string{
 			"/usr/bin/python",
 			"/usr/bin/python3",
@@ -89,7 +89,7 @@ func init() {
 
 	exec.Register("ruby", &exec.Executable{
 		Name:     "ruby",
-		Variable: "RUBY_PATH",
+		Variable: "XTASK_RUBY_EXE",
 		Linux: []string{
 			"/usr/bin/ruby",
 			"/usr/local/bin/ruby",
@@ -103,11 +103,18 @@ func BashScript(script string) *exec.Cmd {
 	return exec.New("bash", args...)
 }
 
-func BashScriptContext(ctx context.Context, script string) *exec.Cmd {
-	args := []string{"--noprofile", "--norc", "-eo", "pipefail", "-c", script}
-	cmd := &exec.Cmd{
-		Cmd: e.CommandContext(ctx, "bash", args...),
-	}
-	return cmd
+func BashScriptContext(ctx context.Context, script string, args ...string) *exec.Cmd {
+	noLines := !strings.ContainsAny(script, "\n\r")
 
+	if len(args) > 0 && noLines {
+		next := cmdargs.New([]string{script}).Append(args...).String()
+		script = next
+	}
+
+	splat := []string{"--noprofile", "--norc", "-eo", "pipefail", "-c", script}
+	exe, _ := exec.Find("bash", nil)
+	if exe == "" {
+		exe = "bash"
+	}
+	return exec.NewContext(ctx, exe, splat...)
 }
