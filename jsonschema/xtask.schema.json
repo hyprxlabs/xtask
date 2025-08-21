@@ -213,14 +213,15 @@
                                 "ruby",
                                 "ssh",
                                 "scp",
-                                "docker"
+                                "docker",
+                                "tmpl"
                             ],
                             "description": "The type of command to run"
                         },
                         {
                             "type": "string",
                             "description": "A custom command to run, e.g., a script or executable",
-                            "pattern": "^(scp?|ssh?|docker)://.*"
+                            "pattern": "^(scp?|ssh?|tmpl?|docker)://.*"
                         }
                     ]
                 },

@@ -108,6 +108,11 @@ func Run(ctx TaskContext) *TaskResult {
 		return runSSH(ctx)
 	}
 
+	if strings.HasPrefix(ctx.Task.Uses, "tmpl") {
+		// If the task uses a template, we can run the template task
+		return runTpl(ctx)
+	}
+
 	if ctx.Task.Run != "" {
 		// If a command is defined, run it
 		return runShell(ctx)
