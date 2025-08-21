@@ -1,6 +1,4 @@
-env:
-  AUTO: "tesla"
-  XTASK_POWERSHELL_EXE: /usr/bin/pwsh
+
 
 config:
   prepend-paths:
