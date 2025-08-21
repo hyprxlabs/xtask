@@ -25,7 +25,7 @@ type Task struct {
 	XEnv    map[string]string
 	Run     string
 	Uses    string
-	Targets []string
+	Hosts   []string
 	Cwd     string
 	Timeout time.Duration
 	Needs   []string
@@ -94,17 +94,17 @@ func Run(ctx TaskContext) *TaskResult {
 	// Here you would implement the logic to run the task based on the context
 	// This is a placeholder for the actual implementation
 
-	if strings.HasPrefix(ctx.Task.Uses, "scp://") {
+	if strings.HasPrefix(ctx.Task.Uses, "scp") {
 		// If the task uses SCP, we can run the SCP task
 		return runSCP(ctx)
 	}
 
-	if strings.HasPrefix(ctx.Task.Uses, "docker://") {
+	if strings.HasPrefix(ctx.Task.Uses, "docker") {
 		// If the task uses Docker, we can run the Docker task
 		return runDocker(ctx)
 	}
 
-	if strings.HasPrefix(ctx.Task.Uses, "ssh://") {
+	if strings.HasPrefix(ctx.Task.Uses, "ssh") {
 		return runSSH(ctx)
 	}
 

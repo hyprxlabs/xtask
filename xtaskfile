@@ -2,9 +2,14 @@ env:
   AUTO: "tesla"
   XTASK_POWERSHELL_EXE: /usr/bin/pwsh
 
-dotenv: [".env"]
-
-shell: "bash"
+config:
+  prepend-paths:
+    - windows: c:/Program Files/PowerShell/7
+    - /usr/local/bin
+  env:
+    PROJECT_DIR: "${XTASK_DIR}../../"
+  delegated-dirs:
+    - compose
 
 tasks:
   test:

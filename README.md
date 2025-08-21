@@ -9,6 +9,32 @@ Schema for xtaskfile is available at [jsonschema/xtask.schema.json](jsonschema/x
 It is also availble using <https://raw.githubusercontent.com/hyprxlabs/xtask/refs/heads/main/jsonschema/xtask.schema.json>.
 
 ```yaml
+
+config:
+  # sets the default shell to use for tasks
+  shell: "bash"
+  # enables command substitution in env variables
+  # e.g $(az keyvault secret show --name mysecret --vault-name myvault --query value -o tsv)
+  # environment expansion is enabled by default e.g. ${HOME}
+  command-substitution: true
+  # loads before everything else
+  env:
+    CUSTOM_VAR: "Hello World"
+    RELATIVE_VAR: "${XTASK_DIR}/relative"
+
+  # prepend paths to the PATH environment variable.
+  # these paths can be absolute or relative and may
+  # contain platform specific paths. e.g. windows, linux, darwin
+  prepend-paths:
+    - windows: "C:\\Program Files\\Git\\usr\\bin"
+    - ./my/bin
+
+# loads after config.env
+dotenv:
+  - ${RELATIVE_VAR}/.env
+
+# loads after config.env and dotenv
+# used to override dotenv variables
 env:
   ONE: "one"
   TWO: "${TWO:-two}"
@@ -33,6 +59,7 @@ tasks:
 ```bash
 xtask build
 xtask ssh
+xtask ls # lists all task
 ```
 
 ## CLI

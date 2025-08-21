@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/hyprxlabs/go/env"
 	"github.com/hyprxlabs/xtask/internal/workflow"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -28,10 +29,26 @@ var execCmd = &cobra.Command{
 			args = args[1:]
 			if len(args) > 0 && args[0] == "exec" {
 				args = args[1:]
+			} else if len(args) > 0 {
+				index := -1
+				for i, arg := range args {
+					if arg == "exec" {
+						index = i
+						break
+					}
+				}
+
+				if index != -1 {
+					args = append(args[:index], args[index+1:]...)
+				}
 			}
 		}
 
 		flags := pflag.NewFlagSet("", pflag.ContinueOnError)
+		flags.StringP("file", "f", env.Get("XTASK_FILE"), "Path to the xtaskfile (default is ./xtaskfile)")
+		flags.StringP("dir", "d", env.Get("XTASK_DIR"), "Directory to run the task in (default is current directory)")
+		flags.StringArrayP("dotenv", "E", []string{}, "List of dotenv files to load")
+		flags.StringToStringP("env", "e", map[string]string{}, "List of environment variables to set")
 
 		cmdArgs := []string{}
 		remainingArgs := []string{}
@@ -65,13 +82,16 @@ var execCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		file, _ := cmd.Flags().GetString("file")
-		if file == "" {
-			file = "./xtaskfile"
+		file, _ := flags.GetString("file")
+		dir, _ := flags.GetString("dir")
+		file, err = getFile(file, dir)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error loading xtaskfile: %v\n", err)
+			os.Exit(1)
 		}
 
 		if len(remainingArgs) == 0 {
-			println("No command provided to exec.")
+			os.Stderr.WriteString("No command provided to exec.\n")
 			cmd.Help()
 			os.Exit(1)
 		}
@@ -103,8 +123,7 @@ var execCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(execCmd)
 	flags := execCmd.Flags()
-	flags.StringP("file", "f", "", "Path to the xtaskfile (default is ./xtaskfile)")
-	flags.StringArrayP("dotenv", "d", []string{}, "List of dotenv files to load")
+	flags.StringArrayP("dotenv", "E", []string{}, "List of dotenv files to load")
 	flags.StringToStringP("env", "e", nil, "Environment variables to set for the command")
 	// Here you will define your flags and configuration settings.
 

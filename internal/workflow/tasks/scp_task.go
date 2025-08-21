@@ -20,6 +20,10 @@ func runSCP(ctx TaskContext) *TaskResult {
 	//https://github.com/melbahja/goph
 
 	res := NewTaskResult()
+	uses := ctx.Task.Uses
+	if uses == "scp" {
+		uses = "scp://"
+	}
 
 	if len(ctx.Task.Files) == 0 {
 		return res.Fail(errors.New("No files specified for SCP task"))
@@ -34,12 +38,21 @@ func runSCP(ctx TaskContext) *TaskResult {
 		return res.Fail(errors.New("Invalid SSH URI scheme: " + uri.Scheme))
 	}
 
-	direction := uri.Path
+	direction := uri.Query().Get("direction")
 	if direction == "" {
-		direction = "upload"
+		direction = uri.Path
 	}
 
-	targets := []schema.SshTarget{}
+	download := uri.Query().Get("download") == "true"
+	if direction == "" {
+		if download {
+			direction = "download"
+		} else {
+			direction = "upload"
+		}
+	}
+
+	targets := []schema.SshHost{}
 	if uri.Host != "" {
 		user := ""
 		if uri.User != nil {
@@ -61,15 +74,15 @@ func runSCP(ctx TaskContext) *TaskResult {
 
 		identity := uri.Query().Get("identity")
 
-		targets = append(targets, schema.SshTarget{
+		targets = append(targets, schema.SshHost{
 			Host:     uri.Host,
 			User:     &user,
 			Port:     &port,
 			Identity: &identity,
 			Password: &password,
 		})
-	} else if len(ctx.Task.Targets) > 0 {
-		targetNames := ctx.Task.Targets
+	} else if len(ctx.Task.Hosts) > 0 {
+		targetNames := ctx.Task.Hosts
 
 		for _, targetName := range targetNames {
 			target, ok := ctx.Targets[targetName]
@@ -108,7 +121,7 @@ func runSCP(ctx TaskContext) *TaskResult {
 	return res.Ok()
 }
 
-func runScpTarget(ctx context.Context, direction string, taskContext TaskContext, target schema.SshTarget) error {
+func runScpTarget(ctx context.Context, direction string, taskContext TaskContext, target schema.SshHost) error {
 	var auth goph.Auth
 	var err error
 	identity := ""
@@ -174,10 +187,11 @@ func runScpTarget(ctx context.Context, direction string, taskContext TaskContext
 		source := parts[0]
 		destination := parts[1]
 
-		if direction == "upload" {
+		if direction != "download" {
+			os.Stdout.WriteString("Uploading " + source + " to " + destination + " on " + target.Host + "\n")
 			err = Upload(ctx, client, source, destination)
-		}
-		if direction == "download" {
+		} else {
+			os.Stdout.WriteString("Downloading " + source + " to " + destination + " from " + target.Host + "\n")
 			err = Download(ctx, client, destination, source)
 		}
 

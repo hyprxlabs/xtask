@@ -6,6 +6,7 @@ package cmd
 import (
 	"os"
 
+	"github.com/hyprxlabs/go/env"
 	"github.com/hyprxlabs/xtask/internal/workflow"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -32,12 +33,25 @@ to quickly create a Cobra application.`,
 
 			if len(args) > 0 && args[0] == "run" {
 				args = args[1:]
+			} else if len(args) > 0 {
+				index := -1
+				for i, arg := range args {
+					if arg == "run" {
+						index = i
+						break
+					}
+				}
+
+				if index != -1 {
+					args = append(args[:index], args[index+1:]...)
+				}
 			}
 		}
 
 		flags := pflag.NewFlagSet("", pflag.ContinueOnError)
-		flags.StringP("file", "f", "", "Path to the xtaskfile (default is ./xtaskfile)")
-		flags.StringArrayP("dotenv", "d", []string{}, "List of dotenv files to load")
+		flags.StringP("file", "f", env.Get("XTASK_FILE"), "Path to the xtaskfile (default is ./xtaskfile)")
+		flags.StringP("dir", "d", env.Get("XTASK_DIR"), "Directory to run the task in (default is current directory)")
+		flags.StringArrayP("dotenv", "E", []string{}, "List of dotenv files to load")
 		flags.StringToStringP("env", "e", map[string]string{}, "List of environment variables to set")
 
 		targets := []string{}
@@ -104,8 +118,12 @@ to quickly create a Cobra application.`,
 		}
 
 		file, _ := flags.GetString("file")
-		if file == "" {
-			file = "./xtaskfile"
+		dir, _ := flags.GetString("dir")
+
+		file, err = getFile(file, dir)
+		if err != nil {
+			cmd.PrintErrf("Error resolving file: %v\n", err)
+			os.Exit(1)
 		}
 
 		dotenvFiles, _ := flags.GetStringArray("dotenv")
@@ -135,8 +153,7 @@ to quickly create a Cobra application.`,
 func init() {
 	rootCmd.AddCommand(runCmd)
 
-	runCmd.Flags().StringP("file", "f", "", "Path to the xtaskfile (default is ./xtaskfile)")
-	runCmd.Flags().StringArrayP("dotenv", "d", []string{}, "List of dotenv files to load")
+	runCmd.Flags().StringArrayP("dotenv", "E", []string{}, "List of dotenv files to load")
 	runCmd.Flags().StringToStringP("env", "e", map[string]string{}, "List of environment variables to set")
 
 	// Here you will define your flags and configuration settings.

@@ -17,8 +17,12 @@ func runSSH(ctx TaskContext) *TaskResult {
 	//https://github.com/melbahja/goph
 
 	res := NewTaskResult()
+	uses := ctx.Task.Uses
+	if uses == "ssh" {
+		uses = "ssh://"
+	}
 
-	uri, err := url.Parse(ctx.Task.Uses)
+	uri, err := url.Parse(uses)
 	if err != nil {
 		return res.Fail(errors.New("Invalid SSH URI: " + err.Error()))
 	}
@@ -27,7 +31,7 @@ func runSSH(ctx TaskContext) *TaskResult {
 		return res.Fail(errors.New("Invalid SSH URI scheme: " + uri.Scheme))
 	}
 
-	targets := []schema.SshTarget{}
+	targets := []schema.SshHost{}
 	if uri.Host != "" {
 		user := ""
 		if uri.User != nil {
@@ -49,15 +53,15 @@ func runSSH(ctx TaskContext) *TaskResult {
 
 		identity := uri.Query().Get("identity")
 
-		targets = append(targets, schema.SshTarget{
+		targets = append(targets, schema.SshHost{
 			Host:     uri.Host,
 			User:     &user,
 			Port:     &port,
 			Identity: &identity,
 			Password: &password,
 		})
-	} else if len(ctx.Task.Targets) > 0 {
-		targetNames := ctx.Task.Targets
+	} else if len(ctx.Task.Hosts) > 0 {
+		targetNames := ctx.Task.Hosts
 
 		for _, targetName := range targetNames {
 			target, ok := ctx.Targets[targetName]
@@ -105,7 +109,7 @@ type SshRun struct {
 	Error error
 }
 
-func runTarget(ctx context.Context, taskContext TaskContext, target schema.SshTarget) error {
+func runTarget(ctx context.Context, taskContext TaskContext, target schema.SshHost) error {
 	signal := make(chan SshRun)
 
 	var auth goph.Auth

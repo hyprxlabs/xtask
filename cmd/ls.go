@@ -13,27 +13,19 @@ import (
 // lsCmd represents the ls command
 var lsCmd = &cobra.Command{
 	Use:   "ls",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Short: "lists tasks in the xtaskfile",
 	Run: func(cmd *cobra.Command, args []string) {
 		file, _ := cmd.Flags().GetString("file")
-		if file == "" {
-			file = "./xtaskfile"
+		dir, _ := cmd.Flags().GetString("dir")
+		file, err := getFile(file, dir)
+		if err != nil {
+			cmd.PrintErrf("Error loading xtaskfile: %v\n", err)
+			os.Exit(1)
 		}
 
-		task := "default"
-		if len(args) > 0 {
-			task = args[0]
-		}
-
-		err := workflow.Run(workflow.Params{
+		err = workflow.Run(workflow.Params{
 			Args:                args,
-			Tasks:               []string{task},
+			Tasks:               []string{},
 			Timeout:             0,
 			CommandSubstitution: true,
 			Context:             cmd.Context(),

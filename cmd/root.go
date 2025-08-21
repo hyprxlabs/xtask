@@ -6,6 +6,7 @@ package cmd
 import (
 	"os"
 
+	"github.com/hyprxlabs/go/env"
 	"github.com/spf13/cobra"
 )
 
@@ -51,12 +52,25 @@ func Execute() {
 				}
 			}
 		} else {
-			first := args[1]
+
 			hasCommand := false
-			for _, cmd := range commands {
-				if first == cmd {
+
+			for i := 0; i < len(args); i++ {
+				arg := args[i]
+				switch arg {
+				case "--file", "-f":
+					i++
+
+				case "--dir", "-d":
+					i++
+				case "xtask":
+					continue
+				case "ls":
 					hasCommand = true
-					break
+				case "run":
+					hasCommand = true
+				case "exec":
+					hasCommand = true
 				}
 			}
 			if !hasCommand {
@@ -74,6 +88,9 @@ func Execute() {
 }
 
 func init() {
+	file := env.Get("XTASK_FILE")
+	dir := env.Get("XTASK_DIR")
+
 	// Here you will define your flags and configuration settings.
 	// Cobra supports persistent flags, which, if defined here,
 	// will be global for your application.
@@ -82,5 +99,6 @@ func init() {
 
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
-	rootCmd.Flags().StringP("file", "f", "./xtaskfile", "Path to the YAML file")
+	rootCmd.PersistentFlags().StringP("file", "f", file, "Path to the YAML file")
+	rootCmd.PersistentFlags().StringP("dir", "d", dir, "Directory to run the task in (default is current directory)")
 }

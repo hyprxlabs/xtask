@@ -13,16 +13,100 @@
             "type": "string",
             "description": "A brief description of the task"
         },
-        "shell": {
-            "type": "string",
-            "enum": [
-                "bash",
-                "pwsh",
-                "powershell",
-                "sh"
-            ],
-            "description": "The shell to use for the task"
+        "config": {
+            "type": "object",
+            "properties": {
+                "command-substitution": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Enable command substitution in the task"
+                },
+                "shell": {
+                    "type": "string",
+                    "enum": [
+                        "bash",
+                        "pwsh",
+                        "python",
+                        "powershell",
+                        "sh",
+                        "node",
+                        "bun",
+                        "deno",
+                        "ruby"
+                    ],
+                    "description": "The shell to use for running commands in the task"
+                },
+                "env": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    },
+                    "description": "Environment variables to set for the command"  
+                },
+                "prepend-paths": {
+                    "type": "array",
+                    "items": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "description": "A directory to add to the PATH environment variable"
+                            },
+                            {
+                                "type": "object",
+                                "properties": {
+                                    "path": {
+                                        "type": "string",
+                                        "description": "A directory to add to the PATH environment variable"
+                                    },
+                                    "os": {
+                                        "type": "string",
+                                        "enum": ["linux", "darwin", "windows"],
+                                        "description": "Whether to prepend or append the path"
+                                    }
+                                },
+                                "required": ["path"]
+                            },
+                            {
+                                "type": "object",
+                                "properties": {
+                                    "windows": {
+                                        "type": "string",
+                                        "description": "A directory to add to the PATH environment variable on Windows"
+                                    }
+                                }
+                            }, 
+                            {
+                                "type": "object",
+                                "properties": {
+                                    "linux": {
+                                        "type": "string",
+                                        "description": "A directory to add to the PATH environment variable on Linux"
+                                    }
+                                }
+                            },
+                            {
+                                "type": "object",
+                                "properties": {
+                                    "darwin": {
+                                        "type": "string",
+                                        "description": "A directory to add to the PATH environment variable on macOS"
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                },
+                "delegated-dirs": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "description": "Directories used by drun to look in for a match for an exisiting xtaskfile"
+                }
+            },
+            "additionalProperties": false
         },
+ 
         "env": {
             "type": "object",
             "additionalProperties": {
@@ -44,7 +128,7 @@
                         "type": "object",
                         "patternProperties": {
                             "^[a-zA-Z0-9_-]+$": {
-                                "oneOf": [
+                                "anyOf": [
                                     {
                                         "type": "string",
                                         "description": "Host in the format of 'user@host[:port]'"
@@ -73,7 +157,7 @@
             "type": "object",
             "patternProperties": {
                 "^[a-zA-Z0-9_-]+$": {
-                   "oneOf": [
+                   "anyOf": [
                         {
                             "type": "string",
                             "description": "A task name that refers to another task"
