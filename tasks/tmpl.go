@@ -9,13 +9,13 @@ import (
 
 	"github.com/Masterminds/sprig"
 	"github.com/hyprxlabs/go/env"
-	"github.com/hyprxlabs/xtask/internal/errors"
+	"github.com/hyprxlabs/xtask/errors"
 	"gopkg.in/yaml.v3"
 )
 
 func runTpl(ctx TaskContext) *TaskResult {
 
-	uses := ctx.Task.Uses
+	uses := ctx.Data.Uses
 	if uses == "tmpl" {
 		uses = "tmpl://"
 	}
@@ -50,8 +50,24 @@ func runTpl(ctx TaskContext) *TaskResult {
 		return res.Fail(errors.New("Invalid template URI scheme: " + uri.Scheme))
 	}
 
-	files := ctx.Task.Files
-	if len(files) == 0 {
+	filesInput, ok := ctx.Data.With["files"]
+	if !ok {
+		return res.Fail(errors.New("No files to process for template task"))
+	}
+
+	filesArr, ok := filesInput.([]interface{})
+	if !ok {
+		return res.Fail(errors.New("Invalid files format for template task"))
+	}
+
+	files := []string{}
+	for _, f := range filesArr {
+		if str, ok := f.(string); ok {
+			files = append(files, str)
+		}
+	}
+
+	if files == nil {
 		return res.Fail(errors.New("No files to process for template task"))
 	}
 
@@ -72,7 +88,7 @@ func runTpl(ctx TaskContext) *TaskResult {
 		env    map[string]string
 		values map[string]interface{}
 	}{
-		env:    ctx.Task.Env,
+		env:    ctx.Data.Env.ToMap(),
 		values: values,
 	}
 

@@ -7,8 +7,8 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/hyprxlabs/xtask/internal/errors"
-	"github.com/hyprxlabs/xtask/internal/schema"
+	"github.com/hyprxlabs/xtask/errors"
+	"github.com/hyprxlabs/xtask/types"
 	goph "github.com/melbahja/goph"
 	"golang.org/x/crypto/ssh"
 )
@@ -17,7 +17,7 @@ func runSSH(ctx TaskContext) *TaskResult {
 	//https://github.com/melbahja/goph
 
 	res := NewTaskResult()
-	uses := ctx.Task.Uses
+	uses := ctx.Data.Uses
 	if uses == "ssh" {
 		uses = "ssh://"
 	}
@@ -31,7 +31,7 @@ func runSSH(ctx TaskContext) *TaskResult {
 		return res.Fail(errors.New("Invalid SSH URI scheme: " + uri.Scheme))
 	}
 
-	targets := []schema.SshHost{}
+	targets := []types.Host{}
 	if uri.Host != "" {
 		user := ""
 		if uri.User != nil {
@@ -48,38 +48,29 @@ func runSSH(ctx TaskContext) *TaskResult {
 
 		password, ok := uri.User.Password()
 		if ok && password != "" {
-			password = ctx.Task.Env[password]
+			p, ok := ctx.Data.Env.Get(password)
+			if ok {
+				password = p
+			}
 		}
 
 		identity := uri.Query().Get("identity")
-
-		targets = append(targets, schema.SshHost{
+		targets = append(targets, types.Host{
 			Host:     uri.Host,
 			User:     &user,
 			Port:     &port,
 			Identity: &identity,
 			Password: &password,
 		})
-	} else if len(ctx.Task.Hosts) > 0 {
-		targetNames := ctx.Task.Hosts
-
-		for _, targetName := range targetNames {
-			target, ok := ctx.Targets[targetName]
-			if ok {
-				targets = append(targets, target)
-			} else {
-				for _, target := range ctx.Targets {
-					for _, group := range target.Groups {
-						if group == targetName {
-							targets = append(targets, target)
-						}
-					}
-				}
-			}
-		}
 	} else {
-		for _, value := range ctx.Targets {
-			targets = append(targets, value)
+		for _, t := range ctx.Data.Hosts {
+			targets = append(targets, types.Host{
+				Host:     t.Host,
+				User:     t.User,
+				Port:     t.Port,
+				Identity: t.Identity,
+				Password: t.Password,
+			})
 		}
 	}
 
@@ -88,7 +79,7 @@ func runSSH(ctx TaskContext) *TaskResult {
 	}
 
 	for _, target := range targets {
-		err := runTarget(ctx.Context, ctx, target)
+		err := runSSHTarget(ctx.Context, ctx, target)
 		if errors.Is(err, context.Canceled) {
 			return res.Cancel("Task " + ctx.Task.Id + " cancelled")
 		}
@@ -109,21 +100,20 @@ type SshRun struct {
 	Error error
 }
 
-func runTarget(ctx context.Context, taskContext TaskContext, target schema.SshHost) error {
+func runSSHTarget(ctx context.Context, taskContext TaskContext, target types.Host) error {
 	signal := make(chan SshRun)
 
 	var auth goph.Auth
 	var err error
 	identity := ""
 	password := ""
+	run := ""
 	if target.Identity != nil {
 		identity = *target.Identity
 	}
+
 	if target.Password != nil {
 		password = *target.Password
-		if password != "" {
-			password = taskContext.Task.Env[password]
-		}
 	}
 
 	if identity == "" && password != "" {
@@ -178,19 +168,17 @@ func runTarget(ctx context.Context, taskContext TaskContext, target schema.SshHo
 
 	go func() {
 
-		if taskContext.Task.Env != nil {
-			for key := range taskContext.TaskDef.Env {
-				value, ok := taskContext.Task.Env[key]
-				if ok {
-					// this only works if the server supports it
-					sess.Setenv(key, value)
-				}
+		if taskContext.Data.Env.Len() < 0 {
+			// only set env values that are explicitly set in the task
+			for _, key := range taskContext.Task.Env.Keys() {
+				value, _ := taskContext.Task.Env.Get(key)
+				sess.Setenv(key, value)
 			}
 		}
 
 		sess.Stdout = os.Stdout
 		sess.Stderr = os.Stderr
-		err = sess.Run(taskContext.Task.Run)
+		err = sess.Run(run)
 
 		if err != nil {
 			err2 := errors.New("Failed to run command on SSH target " + target.Host + ": " + err.Error())

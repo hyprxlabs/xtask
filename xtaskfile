@@ -1,4 +1,5 @@
-
+app: traefik
+contexts: ["default", "production"]
 
 config:
   prepend-paths:
@@ -6,8 +7,12 @@ config:
     - /usr/local/bin
   env:
     PROJECT_DIR: "${XTASK_DIR}../../"
+    XTASK_POWERSHELL_EXE: "/usr/local/bin/pwsh"
   delegated-dirs:
     - compose
+
+env:
+  XTASK_POWERSHELL_EXE: "/usr/local/bin/pwsh"
 
 tasks:
   test:

@@ -28,7 +28,7 @@ type ExpandOptions struct {
 	// If true, windows style environment variables will be expanded
 	Get                  func(string) string
 	Set                  func(string, string) error
-	Env                  map[string]string
+	Keys                 []string
 	ExpandUnixArgs       bool
 	ExpandWindowsVars    bool
 	CommandSubstitution  bool
@@ -106,6 +106,16 @@ func interpolateVar(token string, o *ExpandOptions) (string, error) {
 			v := o.Get(key)
 			if len(v) == 0 {
 				o.Set(key, defaultValue)
+				hasKey := false
+				for _, k := range o.Keys {
+					if k == key {
+						hasKey = true
+						break
+					}
+				}
+				if !hasKey {
+					o.Keys = append(o.Keys, key)
+				}
 			}
 		}
 	} else if strings.Contains(token, ":?") {
@@ -341,9 +351,10 @@ func ExpandWithOptions(input string, options *ExpandOptions) (string, error) {
 				commandArgs.RemoveAt(0)
 
 				cmd := exec.Command(exe, commandArgs.ToArray()...)
-				if len(o.Env) > 0 {
+				if len(o.Keys) > 0 {
 					envVars := os.Environ()
-					for k, v := range o.Env {
+					for _, k := range o.Keys {
+						v := o.Get(k)
 						envVars = append(envVars, fmt.Sprintf("%s=%s", k, v))
 					}
 					cmd.Env = envVars
@@ -420,9 +431,10 @@ func ExpandWithOptions(input string, options *ExpandOptions) (string, error) {
 			shellArgs = append(shellArgs, expression)
 
 			cmd := exec.Command(o.UseShell, shellArgs...)
-			if len(o.Env) > 0 {
+			if len(o.Keys) > 0 {
 				envVars := os.Environ()
-				for k, v := range o.Env {
+				for _, k := range o.Keys {
+					v := o.Get(k)
 					envVars = append(envVars, fmt.Sprintf("%s=%s", k, v))
 				}
 				cmd.Env = envVars

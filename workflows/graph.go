@@ -1,12 +1,12 @@
-package workflow
+package workflows
 
 import (
 	"errors"
 
-	"github.com/hyprxlabs/xtask/internal/schema"
+	"github.com/hyprxlabs/xtask/types"
 )
 
-func flattenTasks(targets []string, tasks schema.Tasks, set []schema.TaskDef) ([]schema.TaskDef, error) {
+func flattenTasks(targets []string, tasks types.Tasks, set []types.Task) ([]types.Task, error) {
 
 	for _, target := range targets {
 		task, ok := tasks[target]
@@ -38,12 +38,12 @@ func flattenTasks(targets []string, tasks schema.Tasks, set []schema.TaskDef) ([
 	return set, nil
 }
 
-func findCyclicalReferences(tasks []schema.TaskDef) []schema.TaskDef {
-	stack := []schema.TaskDef{}
-	cycles := []schema.TaskDef{}
+func findCyclicalReferences(tasks []types.Task) []types.Task {
+	stack := []types.Task{}
+	cycles := []types.Task{}
 
-	var resolve func(task schema.TaskDef) bool
-	resolve = func(task schema.TaskDef) bool {
+	var resolve func(task types.Task) bool
+	resolve = func(task types.Task) bool {
 		for _, t := range stack {
 			if task.Id == t.Id {
 				return false

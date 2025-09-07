@@ -9,8 +9,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/hyprxlabs/xtask/internal/errors"
-	"github.com/hyprxlabs/xtask/internal/schema"
+	"github.com/hyprxlabs/xtask/errors"
+	"github.com/hyprxlabs/xtask/types"
 	goph "github.com/melbahja/goph"
 	"golang.org/x/crypto/ssh"
 )
@@ -20,16 +20,27 @@ func runSCP(ctx TaskContext) *TaskResult {
 	//https://github.com/melbahja/goph
 
 	res := NewTaskResult()
-	uses := ctx.Task.Uses
+	uses := ctx.Data.Uses
 	if uses == "scp" {
 		uses = "scp://"
 	}
 
-	if len(ctx.Task.Files) == 0 {
+	files := []string{}
+	if v, ok := ctx.Data.With["files"]; ok {
+		if arr, ok := v.([]interface{}); ok {
+			for _, item := range arr {
+				if str, ok := item.(string); ok {
+					files = append(files, str)
+				}
+			}
+		}
+	}
+
+	if len(files) == 0 {
 		return res.Fail(errors.New("No files specified for SCP task"))
 	}
 
-	uri, err := url.Parse(ctx.Task.Uses)
+	uri, err := url.Parse(ctx.Data.Uses)
 	if err != nil {
 		return res.Fail(errors.New("Invalid SSH URI: " + err.Error()))
 	}
@@ -52,7 +63,7 @@ func runSCP(ctx TaskContext) *TaskResult {
 		}
 	}
 
-	targets := []schema.SshHost{}
+	targets := []types.Host{}
 	if uri.Host != "" {
 		user := ""
 		if uri.User != nil {
@@ -69,38 +80,24 @@ func runSCP(ctx TaskContext) *TaskResult {
 
 		password, ok := uri.User.Password()
 		if ok && password != "" {
-			password = ctx.Task.Env[password]
+			p, ok := ctx.Data.Env.Get(password)
+			if ok {
+				password = p
+			}
 		}
 
 		identity := uri.Query().Get("identity")
 
-		targets = append(targets, schema.SshHost{
+		targets = append(targets, types.Host{
 			Host:     uri.Host,
 			User:     &user,
 			Port:     &port,
 			Identity: &identity,
 			Password: &password,
 		})
-	} else if len(ctx.Task.Hosts) > 0 {
-		targetNames := ctx.Task.Hosts
-
-		for _, targetName := range targetNames {
-			target, ok := ctx.Targets[targetName]
-			if ok {
-				targets = append(targets, target)
-			} else {
-				for _, target := range ctx.Targets {
-					for _, group := range target.Groups {
-						if group == targetName {
-							targets = append(targets, target)
-						}
-					}
-				}
-			}
-		}
-	} else {
-		for _, value := range ctx.Targets {
-			targets = append(targets, value)
+	} else if len(ctx.Data.Hosts) > 0 {
+		for _, h := range ctx.Data.Hosts {
+			targets = append(targets, h)
 		}
 	}
 
@@ -109,7 +106,7 @@ func runSCP(ctx TaskContext) *TaskResult {
 	}
 
 	for _, target := range targets {
-		if err := runScpTarget(ctx.Context, direction, ctx, target); err != nil {
+		if err := runScpTarget(ctx.Context, direction, ctx, target, files); err != nil {
 			return res.Fail(err)
 		}
 	}
@@ -121,7 +118,7 @@ func runSCP(ctx TaskContext) *TaskResult {
 	return res.Ok()
 }
 
-func runScpTarget(ctx context.Context, direction string, taskContext TaskContext, target schema.SshHost) error {
+func runScpTarget(ctx context.Context, direction string, taskContext TaskContext, target types.Host, files []string) error {
 	var auth goph.Auth
 	var err error
 	identity := ""
@@ -132,7 +129,10 @@ func runScpTarget(ctx context.Context, direction string, taskContext TaskContext
 	if target.Password != nil {
 		password = *target.Password
 		if password != "" {
-			password = taskContext.Task.Env[password]
+			p, ok := taskContext.Data.Env.Get(password)
+			if ok {
+				password = p
+			}
 		}
 	}
 
@@ -177,7 +177,7 @@ func runScpTarget(ctx context.Context, direction string, taskContext TaskContext
 
 	defer client.Close()
 
-	for _, file := range taskContext.Task.Files {
+	for _, file := range files {
 		parts := strings.Split(file, ":")
 		if len(parts) != 2 {
 			err2 := errors.New("Invalid SCP file format, expected 'source:destination'")

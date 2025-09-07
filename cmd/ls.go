@@ -5,9 +5,12 @@ package cmd
 
 import (
 	"os"
+	"slices"
 
-	"github.com/hyprxlabs/xtask/internal/workflow"
+	"github.com/hyprxlabs/xtask/types"
+	"github.com/hyprxlabs/xtask/workflows"
 	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v3"
 )
 
 // lsCmd represents the ls command
@@ -23,21 +26,43 @@ var lsCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		err = workflow.Run(workflow.Params{
-			Args:                args,
-			Tasks:               []string{},
-			Timeout:             0,
-			CommandSubstitution: true,
-			Context:             cmd.Context(),
-			File:                file,
-			Command:             "ls",
-		})
+		wf := workflows.NewWorkflow()
+		wf.Args = args
+		wf.Context = cmd.Context()
 
+		data, err := os.ReadFile(file)
 		if err != nil {
-			cmd.PrintErrf("Error: %v\n", err)
+			cmd.PrintErrf("Error reading xtaskfile: %v\n", err)
+			os.Exit(1)
+		}
+		tf := &types.XTaskfile{}
+		err = yaml.Unmarshal(data, tf)
+		if err != nil {
+			cmd.PrintErrf("Error parsing xtaskfile: %v\n", err)
 			os.Exit(1)
 		}
 
+		err = wf.Load(*tf)
+		if err != nil {
+			cmd.PrintErrf("Error loading xtaskfile: %v\n", err)
+			os.Exit(1)
+		}
+
+		tasks := wf.List()
+
+		names := []string{}
+		for _, task := range tasks {
+			if task.Name != nil && len(*task.Name) > 0 {
+				names = append(names, *task.Name)
+			} else {
+				names = append(names, task.Id)
+			}
+		}
+		slices.Sort(names)
+
+		for _, name := range names {
+			cmd.Println(name)
+		}
 		os.Exit(0)
 	},
 }
