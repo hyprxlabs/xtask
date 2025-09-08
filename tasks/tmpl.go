@@ -5,6 +5,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/Masterminds/sprig"
@@ -31,21 +32,6 @@ func runTpl(ctx TaskContext) *TaskResult {
 	useTmpl := true
 	useEnv := true
 
-	if uri.Query().Get("disable-go-tmpl") == "true" {
-		useTmpl = false
-	}
-	if uri.Query().Get("disable-env-tmpl") == "true" {
-		useEnv = false
-	}
-
-	if env.Get("XTASK_DISABLE_GO_TMPL") == "true" {
-		useTmpl = false
-	}
-
-	if env.Get("XTASK_DISABLE_ENV_TMPL") == "true" {
-		useEnv = false
-	}
-
 	if uri.Scheme != "tmpl" {
 		return res.Fail(errors.New("Invalid template URI scheme: " + uri.Scheme))
 	}
@@ -71,7 +57,31 @@ func runTpl(ctx TaskContext) *TaskResult {
 		return res.Fail(errors.New("No files to process for template task"))
 	}
 
+	disableEnvRaw, ok := ctx.Data.With["disable-env"]
+	if !ok {
+		disableEnv, ok := disableEnvRaw.(bool)
+		if ok && disableEnv {
+			useEnv = false
+		}
+	}
+
+	disableGoTmplRaw, ok := ctx.Data.With["disable-gotmpl"]
+	if ok {
+		disableGoTmpl, ok := disableGoTmplRaw.(bool)
+		if ok && disableGoTmpl {
+			useTmpl = false
+		}
+	}
+
 	valuesFile := uri.Path
+	if len(valuesFile) == 0 {
+		if next, ok := ctx.Data.With["values"]; ok {
+			if str, ok := next.(string); ok {
+				valuesFile = str
+			}
+		}
+	}
+
 	values := map[string]interface{}{}
 	if len(valuesFile) > 0 && valuesFile != "/" {
 		bytes, err := os.ReadFile(valuesFile)
@@ -84,12 +94,12 @@ func runTpl(ctx TaskContext) *TaskResult {
 		}
 	}
 
-	data := struct {
-		env    map[string]string
-		values map[string]interface{}
-	}{
-		env:    ctx.Data.Env.ToMap(),
-		values: values,
+	envMap := ctx.Data.Env.ToMap()
+	data := map[string]interface{}{
+		"env":  envMap,
+		"data": values,
+		"os":   runtime.GOOS,
+		"arch": runtime.GOARCH,
 	}
 
 	for _, file := range files {
@@ -118,15 +128,16 @@ func runTpl(ctx TaskContext) *TaskResult {
 			updatedContent, err := env.ExpandWithOptions(content, &env.ExpandOptions{
 				CommandSubstitution: true,
 				Get: func(key string) string {
-					if val, ok := data.env[key]; ok {
+					if val, ok := envMap[key]; ok {
 						return val
 					}
 					return ""
 				},
 				Set: func(key, value string) error {
-					data.env[key] = value
+					envMap[key] = value
 					return nil
 				},
+				Keys: ctx.Data.Env.Keys(),
 			})
 
 			if err != nil {

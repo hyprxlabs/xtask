@@ -21,6 +21,45 @@ type ExecutableRegistry struct {
 	data map[string]Executable
 }
 
+type EnvLike interface {
+	Get(key string) string
+	Expand(s string) (string, error)
+	Set(key, value string)
+	SplitPath() []string
+}
+
+func SetEnvLike(e EnvLike) {
+	envLike = e
+}
+
+func GetEnvLike() EnvLike {
+	return envLike
+}
+
+var envLike EnvLike
+
+type defaultEnvLike struct{}
+
+func (d *defaultEnvLike) Get(key string) string {
+	return env.Get(key)
+}
+
+func (d *defaultEnvLike) Expand(s string) (string, error) {
+	return env.Expand(s)
+}
+
+func (d *defaultEnvLike) Set(key, value string) {
+	env.Set(key, value)
+}
+
+func (d *defaultEnvLike) SplitPath() []string {
+	return env.SplitPath()
+}
+
+func init() {
+	envLike = &defaultEnvLike{}
+}
+
 var Registry = &ExecutableRegistry{data: make(map[string]Executable)}
 
 func (r *ExecutableRegistry) Register(name string, exe *Executable) {
@@ -64,9 +103,9 @@ func (r *ExecutableRegistry) Find(name string, options *WhichOptions) (string, e
 	}
 
 	if m.Variable != "" {
-		value := env.Get(m.Variable)
+		value := envLike.Get(m.Variable)
 		if value != "" {
-			value, _ = env.Expand(value)
+			value, _ = envLike.Expand(value)
 			if value != "" {
 				next, ok := WhichFirst(value, options)
 				if ok {
@@ -91,7 +130,7 @@ func (r *ExecutableRegistry) Find(name string, options *WhichOptions) (string, e
 				continue
 			}
 
-			exe2, _ := env.Expand(path)
+			exe2, _ := envLike.Expand(path)
 			if exe2 == "" {
 				continue
 			}
@@ -112,7 +151,7 @@ func (r *ExecutableRegistry) Find(name string, options *WhichOptions) (string, e
 				continue
 			}
 
-			exe2, _ := env.Expand(path)
+			exe2, _ := envLike.Expand(path)
 			if exe2 == "" {
 				continue
 			}
@@ -132,7 +171,7 @@ func (r *ExecutableRegistry) Find(name string, options *WhichOptions) (string, e
 			continue
 		}
 
-		exe2, _ := env.Expand(path)
+		exe2, _ := envLike.Expand(path)
 		if exe2 == "" {
 			continue
 		}

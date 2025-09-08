@@ -87,6 +87,10 @@ func runSSH(ctx TaskContext) *TaskResult {
 		if errors.Is(err, context.DeadlineExceeded) {
 			return res.Cancel("Task " + ctx.Task.Id + " cancelled due to timeout")
 		}
+
+		if err != nil {
+			return res.Fail(errors.New("Failed to run SSH task on target " + target.Host + ": " + err.Error()))
+		}
 	}
 
 	res.End()
@@ -115,6 +119,8 @@ func runSSHTarget(ctx context.Context, taskContext TaskContext, target types.Hos
 	if target.Password != nil {
 		password = *target.Password
 	}
+
+	run = taskContext.Data.Run
 
 	if identity == "" && password != "" {
 		auth = goph.Password(password)
@@ -168,10 +174,10 @@ func runSSHTarget(ctx context.Context, taskContext TaskContext, target types.Hos
 
 	go func() {
 
-		if taskContext.Data.Env.Len() < 0 {
+		if taskContext.Data.Env.Len() > 0 {
 			// only set env values that are explicitly set in the task
 			for _, key := range taskContext.Task.Env.Keys() {
-				value, _ := taskContext.Task.Env.Get(key)
+				value, _ := taskContext.Data.Env.Get(key)
 				sess.Setenv(key, value)
 			}
 		}

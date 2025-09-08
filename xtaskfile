@@ -1,25 +1,35 @@
-app: traefik
-contexts: ["default", "production"]
+
 
 config:
   prepend-paths:
     - windows: c:/Program Files/PowerShell/7
     - /usr/local/bin
+
   env:
     PROJECT_DIR: "${XTASK_DIR}../../"
     XTASK_POWERSHELL_EXE: "/usr/local/bin/pwsh"
-  delegated-dirs:
-    - compose
+
+hosts:
+  vm1:
+    host: "192.168.122.236"
+    user: "dev_user"
+    groups: ["dev", "admins"]
 
 env:
-  XTASK_POWERSHELL_EXE: "/usr/local/bin/pwsh"
+  - AUTO="tesla"
+  - name: TEST
+    value: "This is a test"
 
 tasks:
   test:
     uses: "powershell"
     run: |
-      echo "$XTASK_POWERSHELL_EXE"
+      echo "$env:XTASK_POWERSHELL_EXE"
+      echo "$env:TEST"
       Write-Host "Hello $($env:AUTO)"
+
+  blank:
+    needs: [test]
 
   echo: "echo"
 
@@ -52,6 +62,15 @@ tasks:
     run: |
       echo "Hello Nurse from $ENV_TEST"
     needs: [test]
+    with:
+      files:
+        - "./local/x.yaml:./x.yaml"
+      test: "value"
+      test2:
+        - 1023
+      bad:
+        nested:
+          - should: "fail"
 
   bun:
     uses: "bun"
@@ -61,7 +80,7 @@ tasks:
     uses: "ruby"
     run: |
       puts "Hello Ruby"
-      puts "Car, #{ENV['AUTO']}, is ready to go!"
+      puts "Car, #{ENV['AUTO']}, is ready to go!"s
 
   python:
     uses: "python"
@@ -69,12 +88,36 @@ tasks:
       print("Hello Python")
 
   ssh:
-    uses: "ssh://user@10.0.6.0"
+    uses: "ssh"
+    desc: "uses ssh to connect to a remote host"
+    hosts: ["dev"]
+    env:
+      LC_AUTO: "${AUTO}"
     run: |
       uptime
       echo "${HOSTNAME} is up"
-      echo "Car, ${AUTO}, is ready to go!"
+      echo "Car: ${LC_AUTO}, is ready to go!"
+
+  scp:
+    uses: "scp://user@192.168.122.236"
+    desc: "uses scp to copy a file to a remote host"
+    with:
+      files:
+        - "./local/x.yaml:./x.yaml"
 
   docker:
     uses: "docker"
     run: test/test # This is a comment
+
+  build:before: 'echo "This runs before the build task"'
+
+  build:
+    run: |
+      echo "building..."
+
+  tmpl:
+    uses: tmpl
+    if: '{{ eq .os "windows" }}'
+    with:
+      files:
+        - "./local/temp.tmpl:./local/temp.txt"

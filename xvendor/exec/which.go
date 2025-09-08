@@ -7,8 +7,6 @@ import (
 	"runtime"
 	"strings"
 	"unicode"
-
-	"github.com/hyprxlabs/go/env"
 )
 
 var (
@@ -69,10 +67,10 @@ func WhichFirst(command string, options *WhichOptions) (string, bool) {
 		pathSegments = append(pathSegments, options.PrependPaths...)
 	}
 
-	pathSegments = append(pathSegments, env.SplitPath()...)
+	pathSegments = append(pathSegments, envLike.SplitPath()...)
 
 	for i, path := range pathSegments {
-		value, _ := env.Expand(path)
+		value, _ := envLike.Expand(path)
 		if value == "" {
 			continue
 		}
@@ -86,7 +84,7 @@ func WhichFirst(command string, options *WhichOptions) (string, bool) {
 		}
 
 		if runtime.GOOS == "windows" {
-			pathExt := env.Get("PATHEXT")
+			pathExt := envLike.Get("PATHEXT")
 			if emptySpace(pathExt) {
 				pathExt = ".com;.exe;.bat;.cmd;.vbs;.vbe;.js;.jse;.wsf;.wsh"
 			} else {

@@ -22,6 +22,7 @@ type Workflow struct {
 	Context     context.Context
 	cleanupEnv  bool
 	cleanupPath bool
+	parent      *Workflow
 }
 
 func NewWorkflow() *Workflow {

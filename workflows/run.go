@@ -3,11 +3,13 @@ package workflows
 import (
 	"bufio"
 	"errors"
-	"fmt"
+	"html/template"
 	"os"
+	"runtime"
 	"strings"
 	"time"
 
+	"github.com/Masterminds/sprig"
 	"github.com/hyprxlabs/go/dotenv"
 	"github.com/hyprxlabs/go/env"
 	"github.com/hyprxlabs/xtask/tasks"
@@ -39,10 +41,19 @@ func (ws *Workflow) Run(taskNames []string, args []string) error {
 		return err
 	}
 
-	originalPath := ws.Env.GetString(env.PATH)
-	defer func() {
-		ws.Env.Set(env.PATH, originalPath)
-	}()
+	// skip last task if there is more than one task and
+	// the last task has no run or uses defined
+	lastId := ""
+	if len(flatTasks) > 1 {
+		last := flatTasks[len(flatTasks)-1]
+		if last.Uses == nil || len(*last.Uses) == 0 {
+
+			if last.Run == nil || len(*last.Run) == 0 {
+				lastId = last.Id
+
+			}
+		}
+	}
 
 	if ws.cleanupEnv {
 		envFile := ws.Env.GetString("XTASK_ENV")
@@ -136,8 +147,36 @@ func (ws *Workflow) Run(taskNames []string, args []string) error {
 		}
 	}
 
+	hostGroups := map[string][]types.Host{}
+	for name, host := range ws.Hosts {
+		if len(host.Groups) > 0 {
+			for _, group := range host.Groups {
+				if _, ok := hostGroups[group]; !ok {
+					hostGroups[group] = []types.Host{}
+				}
+				hostGroups[group] = append(hostGroups[group], host)
+			}
+		}
+
+		if _, ok := hostGroups[name]; !ok {
+			hostGroups[name] = []types.Host{host}
+		} else {
+			hostGroups[name] = append(hostGroups[name], host)
+		}
+	}
+
 	for _, task := range flatTasks {
 		taskEnv := envMap.Clone()
+
+		if lastId != "" && task.Id == lastId {
+			name := task.Id
+			if task.Name != nil && len(*task.Name) > 0 {
+				name = *task.Name
+			}
+
+			os.Stdout.WriteString("\x1b[1m" + name + "\x1b[22m\n")
+			return nil
+		}
 
 		f, err := os.CreateTemp("", "xtask-env-")
 		if err != nil {
@@ -221,11 +260,11 @@ func (ws *Workflow) Run(taskNames []string, args []string) error {
 		hosts := map[string]types.Host{}
 		if len(task.Hosts) > 0 {
 			for _, h := range task.Hosts {
-				host, ok := ws.Hosts[h]
-				if !ok {
-					return fmt.Errorf("unknown host: %s", h)
+				if groupHosts, ok := hostGroups[h]; ok {
+					for _, gh := range groupHosts {
+						hosts[gh.Host] = gh
+					}
 				}
-				hosts[h] = host
 			}
 		}
 
@@ -304,6 +343,45 @@ func (ws *Workflow) Run(taskNames []string, args []string) error {
 		if task.Name != nil && len(*task.Name) > 0 {
 			name = *task.Name
 		}
+
+		predicate := true
+		if task.Predicate != nil && len(*task.Predicate) > 0 {
+			predicateRaw := *task.Predicate
+			if predicateRaw == "0" || strings.EqualFold(predicateRaw, "false") {
+				predicate = false
+			} else if predicateRaw == "1" || strings.EqualFold(predicateRaw, "true") {
+				predicate = true
+			} else {
+				predicate = false
+			}
+
+			tplData := map[string]interface{}{
+				"env":  taskEnv.ToMap(),
+				"os":   runtime.GOOS,
+				"arch": runtime.GOARCH,
+			}
+
+			tmp, err := template.New(task.Id + "." + "if").Funcs(sprig.FuncMap()).Parse(predicateRaw)
+			if err != nil {
+				return errors.New("failed to parse if section for task " + task.Id + ": " + err.Error())
+			}
+
+			out := &strings.Builder{}
+			if err := tmp.Execute(out, tplData); err != nil {
+				return errors.New("failed to execute template for task " + task.Id + ": " + err.Error())
+			}
+
+			output := strings.TrimSpace(out.String())
+			if output == "1" || strings.EqualFold(output, "true") {
+				predicate = true
+			}
+		}
+
+		if !predicate {
+			os.Stdout.WriteString("\x1b[1m" + name + "\x1b[22m (skipped)\n")
+			continue
+		}
+
 		os.Stdout.WriteString("\x1b[1m" + name + "\x1b[22m\n")
 		result := tasks.Run(*taskCtx)
 

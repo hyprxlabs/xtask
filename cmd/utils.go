@@ -6,6 +6,9 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/hyprxlabs/xtask/types"
+	"github.com/hyprxlabs/xtask/workflows"
+	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 )
 
@@ -176,4 +179,71 @@ func resolvePath(file string) (string, error) {
 	}
 
 	return file, nil
+}
+
+func runLifecycle(target string, cmd *cobra.Command) error {
+	flags := cmd.Flags()
+
+	apps := flags.Args()
+	file, _ := flags.GetString("file")
+	dir, _ := flags.GetString("dir")
+
+	file, err := getFile(file, dir)
+	if err != nil {
+		return fmt.Errorf("error finding xtaskfile: %v", err)
+	}
+
+	dotenvFiles, _ := flags.GetStringArray("dotenv")
+	envVars, _ := flags.GetStringToString("env")
+	contextName, _ := flags.GetString("context")
+	if contextName == "" {
+		contextName = "default"
+	}
+
+	tf := types.NewXTaskfile()
+	err = tf.DecodeYAMLFile(file)
+	if err != nil {
+		return fmt.Errorf("error loading xtaskfile: %v", err)
+	}
+
+	if len(dotenvFiles) > 0 {
+		tf.Dotenv = append(tf.Dotenv, dotenvFiles...)
+	}
+
+	if len(envVars) > 0 {
+		if tf.Env == nil {
+			tf.Env = types.NewEnv()
+		}
+
+		for k, v := range envVars {
+			tf.Env.Set(k, v)
+		}
+	}
+
+	wf := workflows.NewWorkflow()
+
+	err = wf.Load(*tf)
+	if err != nil {
+		return fmt.Errorf("error loading xtaskfile: %v", err)
+	}
+
+	wf.Context = cmd.Context()
+	if wf.ContextName == "" {
+		wf.ContextName = contextName
+	}
+
+	if len(apps) == 0 {
+		apps = []string{"default"}
+	}
+
+	for _, app := range apps {
+		if app != "" {
+			err := wf.RunLifecycle(target, app, contextName)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }

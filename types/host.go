@@ -28,6 +28,105 @@ type HostsNode struct {
 
 type Hosts map[string]Host
 
+func (hn *HostsNode) UnmarshalYAML(node *yaml.Node) error {
+
+	if hn == nil {
+		hn = &HostsNode{}
+	}
+
+	if hn.Imports == nil {
+		hn.Imports = []string{}
+	}
+
+	if hn.Hosts == nil {
+		hn.Hosts = Hosts{}
+	}
+
+	if node.Kind == yaml.SequenceNode {
+		for _, item := range node.Content {
+			if item.Kind == yaml.ScalarNode {
+				hn.Imports = append(hn.Imports, item.Value)
+				continue
+			}
+
+			if item.Kind != yaml.MappingNode {
+				continue
+			}
+
+			var host Host
+			if err := item.Decode(&host); err != nil {
+				return err
+			}
+
+			if host.Host == "" {
+				return errors.New("host entry missing host field")
+			}
+
+			hn.Hosts[host.Host] = host
+		}
+
+		return nil
+	}
+
+	if node.Kind != yaml.MappingNode {
+		return errors.New("invalid hosts entry")
+	}
+
+	for i := 0; i < len(node.Content); i += 2 {
+		keyNode := node.Content[i]
+		valNode := node.Content[i+1]
+
+		if keyNode.Kind != yaml.ScalarNode {
+			return errors.New("host key must be a string")
+		}
+
+		key := keyNode.Value
+
+		if valNode.Kind == yaml.ScalarNode {
+			next := &Host{}
+			hostname := valNode.Value
+			if strings.ContainsRune(valNode.Value, '@') {
+				parts := strings.SplitN(valNode.Value, "@", 2)
+				next.User = &parts[0]
+				hostname = parts[1]
+			}
+
+			if strings.ContainsRune(hostname, ':') {
+				parts := strings.SplitN(hostname, ":", 2)
+				hostname = parts[0]
+				if len(parts[1]) > 0 {
+					port, err := strconv.Atoi(parts[1])
+					if err != nil {
+						return err
+					}
+					next.Port = &port
+				}
+			}
+
+			next.Host = hostname
+			hn.Hosts[key] = *next
+			continue
+		}
+
+		if valNode.Kind != yaml.MappingNode {
+			return errors.New("invalid host entry")
+		}
+
+		var host Host
+		if err := valNode.Decode(&host); err != nil {
+			return err
+		}
+
+		if host.Host == "" {
+			return errors.New("host entry missing host field for " + key)
+		}
+
+		hn.Hosts[key] = host
+	}
+
+	return nil
+}
+
 func (h *Host) UnmarshalYAML(value *yaml.Node) error {
 	if value.Kind != yaml.MappingNode {
 		return errors.New("invalid host entry")
@@ -40,7 +139,7 @@ func (h *Host) UnmarshalYAML(value *yaml.Node) error {
 		switch keyNode.Value {
 		case "host":
 			if valNode.Kind == yaml.ScalarNode {
-				hostname := ""
+				hostname := valNode.Value
 				if strings.ContainsRune(valNode.Value, '@') {
 					parts := strings.SplitN(valNode.Value, "@", 2)
 					h.User = &parts[0]
@@ -124,15 +223,12 @@ func (h *Host) UnmarshalYAML(value *yaml.Node) error {
 	return nil
 }
 
-func (hosts *Hosts) UnmarshalYAML(value *yaml.Node) error {
-	if value.Kind != yaml.SequenceNode {
-		return errors.New("invalid hosts section")
-	}
+func (hosts *Hosts) UnmarshalYAML(node *yaml.Node) error {
 
-	for _, item := range value.Content {
+	for _, item := range node.Content {
 		if item.Kind == yaml.ScalarNode {
 			next := &Host{}
-			hostname := ""
+			hostname := item.Value
 			if strings.ContainsRune(item.Value, '@') {
 				parts := strings.SplitN(item.Value, "@", 2)
 				next.User = &parts[0]
@@ -161,16 +257,57 @@ func (hosts *Hosts) UnmarshalYAML(value *yaml.Node) error {
 			continue
 		}
 
-		var host Host
-		if err := item.Decode(&host); err != nil {
-			return err
-		}
+		for i := 0; i < len(item.Content); i += 2 {
+			keyNode := item.Content[i]
+			valNode := item.Content[i+1]
 
-		if host.Host == "" {
-			return errors.New("host entry missing host field")
-		}
+			if keyNode.Kind != yaml.ScalarNode {
+				return errors.New("host key must be a string")
+			}
 
-		(*hosts)[host.Host] = host
+			key := keyNode.Value
+
+			if valNode.Kind == yaml.ScalarNode {
+				next := &Host{}
+				hostname := valNode.Value
+				if strings.ContainsRune(valNode.Value, '@') {
+					parts := strings.SplitN(valNode.Value, "@", 2)
+					next.User = &parts[0]
+					hostname = parts[1]
+				}
+
+				if strings.ContainsRune(hostname, ':') {
+					parts := strings.SplitN(hostname, ":", 2)
+					hostname = parts[0]
+					if len(parts[1]) > 0 {
+						port, err := strconv.Atoi(parts[1])
+						if err != nil {
+							return err
+						}
+						next.Port = &port
+					}
+				}
+
+				next.Host = hostname
+				(*hosts)[key] = *next
+				continue
+			}
+
+			if valNode.Kind != yaml.MappingNode {
+				return errors.New("invalid host entry")
+			}
+
+			var host Host
+			if err := item.Decode(&host); err != nil {
+				return err
+			}
+
+			if host.Host == "" {
+				return errors.New("host entry missing host field for " + key)
+			}
+
+			(*hosts)[key] = host
+		}
 	}
 
 	return nil

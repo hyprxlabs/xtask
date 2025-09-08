@@ -6,17 +6,17 @@ package cmd
 import (
 	"os"
 	"slices"
+	"strings"
 
 	"github.com/hyprxlabs/xtask/types"
 	"github.com/hyprxlabs/xtask/workflows"
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v3"
 )
 
 // lsCmd represents the ls command
 var lsCmd = &cobra.Command{
 	Use:   "ls",
-	Short: "lists tasks in the xtaskfile",
+	Short: "Lists tasks in the xtaskfile",
 	Run: func(cmd *cobra.Command, args []string) {
 		file, _ := cmd.Flags().GetString("file")
 		dir, _ := cmd.Flags().GetString("dir")
@@ -26,21 +26,16 @@ var lsCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
+		tf := types.NewXTaskfile()
+		err = tf.DecodeYAMLFile(file)
+		if err != nil {
+			cmd.PrintErrf("Error decoding xtaskfile: %v\n", err)
+			os.Exit(1)
+		}
+
 		wf := workflows.NewWorkflow()
 		wf.Args = args
 		wf.Context = cmd.Context()
-
-		data, err := os.ReadFile(file)
-		if err != nil {
-			cmd.PrintErrf("Error reading xtaskfile: %v\n", err)
-			os.Exit(1)
-		}
-		tf := &types.XTaskfile{}
-		err = yaml.Unmarshal(data, tf)
-		if err != nil {
-			cmd.PrintErrf("Error parsing xtaskfile: %v\n", err)
-			os.Exit(1)
-		}
 
 		err = wf.Load(*tf)
 		if err != nil {
@@ -60,8 +55,31 @@ var lsCmd = &cobra.Command{
 		}
 		slices.Sort(names)
 
+		longest := 0
 		for _, name := range names {
-			cmd.Println(name)
+			if len(name) > longest {
+				longest = len(name)
+			}
+		}
+		max := longest + 2
+
+		for _, name := range names {
+			desc := ""
+			for _, task := range tasks {
+				if (task.Name != nil && *task.Name == name) || (task.Name == nil && task.Id == name) {
+					if task.Desc != nil && len(*task.Desc) > 0 {
+						desc = *task.Desc
+					}
+					break
+				}
+			}
+
+			pad := max - len(name)
+			if pad < 0 {
+				pad = 0
+			}
+
+			cmd.Println("\x1b[34m" + name + "\x1b[0m" + strings.Repeat(" ", pad) + "  " + desc)
 		}
 		os.Exit(0)
 	},

@@ -6,6 +6,7 @@ import (
 	"maps"
 	"net/url"
 	"os"
+	"os/user"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -99,6 +100,12 @@ func (wf *Workflow) Load(taskfile types.XTaskfile) error {
 		}
 	}
 
+	if len(taskfile.HostsNode.Hosts) > 0 {
+		for k, h := range taskfile.HostsNode.Hosts {
+			hosts[k] = h
+		}
+	}
+
 	wf.Hosts = hosts
 	keys := envMap.Keys()
 	for k, v := range *taskfile.Tasks {
@@ -113,7 +120,7 @@ func (wf *Workflow) Load(taskfile types.XTaskfile) error {
 
 		if len(run) > 0 {
 
-			if !strings.ContainsAny(run, "\n\r") && (strings.HasSuffix(run, ".task.yaml") || strings.HasSuffix(run, ".task.yml")) {
+			if !strings.ContainsAny(run, "\n\r") && (strings.HasSuffix(run, ".xtask.yaml") || strings.HasSuffix(run, ".xtask.yml")) {
 				if strings.Contains(run, "://") {
 					uri, err := url.Parse(run)
 					if err != nil {
@@ -227,8 +234,18 @@ func (wf *Workflow) LoadEnv(taskfile types.XTaskfile) error {
 	normalizeEnv(envMap)
 	envMap.Set("XTASK_FILE", taskfile.Path)
 	envMap.Set("XTASK_DIR", rootDir)
+
+	if wf.ContextName == "" && env.Has("XTASK_CONTEXT") {
+		wf.ContextName = env.Get("XTASK_CONTEXT")
+	}
+
 	envMap.Set("XTASK_CONTEXT", wf.ContextName)
 	envMap.Set("XTASK_SHELL", taskfile.Config.Shell)
+
+	if wf.Config.Dirs.Scripts == "" {
+		wf.Config.Dirs.Scripts = "./.xtask/scripts"
+	}
+
 	envMap.Set("XTASK_ETC_DIR", wf.Config.Dirs.Etc)
 	configHome := envMap.GetString("XTASK_CONFIG_HOME")
 	if configHome == "" {
@@ -252,6 +269,17 @@ func (wf *Workflow) LoadEnv(taskfile types.XTaskfile) error {
 	envMap.Set("XTASK_STATE_HOME", stateHome)
 	envMap.Set("XTASK_APPS_DIRS", strings.Join(wf.Config.Dirs.Apps, string(os.PathListSeparator)))
 	envMap.Set("XTASK_VERSION", versions.Version) // TODO: set actual version
+
+	if envMap.Has("SUDO_USER") && runtime.GOOS != "windows" {
+		u, err := user.Lookup(env.Get("SUDO_USER"))
+		if err == nil {
+			binDir := fmt.Sprintf("%s/.local/bin", u.HomeDir)
+			envMap.PrependPath(binDir)
+		}
+	}
+
+	envMap.PrependPath("./node_modules/.bin")
+	envMap.PrependPath("./bin")
 
 	if _, ok := envMap.Get("XTASK_ENV"); !ok {
 		f, err := os.CreateTemp("", "xtask-env-")
@@ -333,9 +361,8 @@ func (wf *Workflow) LoadEnv(taskfile types.XTaskfile) error {
 	}
 
 	if isDir(configHome) {
-		dotenvFiles = append(dotenvFiles, filepath.Join(configHome, ".env.shared?"))
+		dotenvFiles = append(dotenvFiles, filepath.Join(configHome, ".env?"))
 		if wf.ContextName == "default" || wf.ContextName == "" {
-			dotenvFiles = append(dotenvFiles, filepath.Join(configHome, ".env?"))
 			dotenvFiles = append(dotenvFiles, filepath.Join(configHome, ".env.default?"))
 		} else {
 			dotenvFiles = append(dotenvFiles, filepath.Join(configHome, ".env."+wf.ContextName+"?"))
@@ -343,9 +370,8 @@ func (wf *Workflow) LoadEnv(taskfile types.XTaskfile) error {
 	}
 
 	if isDir(wf.Config.Dirs.Etc) {
-		dotenvFiles = append(dotenvFiles, filepath.Join(wf.Config.Dirs.Etc, ".env.shared?"))
+		dotenvFiles = append(dotenvFiles, filepath.Join(wf.Config.Dirs.Etc, ".env?"))
 		if wf.ContextName == "default" || wf.ContextName == "" {
-			dotenvFiles = append(dotenvFiles, filepath.Join(wf.Config.Dirs.Etc, ".env?"))
 			dotenvFiles = append(dotenvFiles, filepath.Join(wf.Config.Dirs.Etc, ".env.default?"))
 		} else {
 			dotenvFiles = append(dotenvFiles, filepath.Join(wf.Config.Dirs.Etc, ".env."+wf.ContextName+"?"))

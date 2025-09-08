@@ -16,10 +16,10 @@
         "config": {
             "type": "object",
             "properties": {
-                "command-substitution": {
+                "substitution": {
                     "type": "boolean",
-                    "default": false,
-                    "description": "Enable command substitution in the task"
+                    "default": true,
+                    "description": "Disable command substitution in xtaskfile"
                 },
                 "shell": {
                     "type": "string",
@@ -37,11 +37,12 @@
                     "description": "The shell to use for running commands in the task"
                 },
                 "env": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    },
+                    "$ref": "#/definitions/env",
                     "description": "Environment variables to set for the command"  
+                },
+                "context": {
+                    "type": "string",
+                    "description": "The default context to use for the tasks"
                 },
                 "prepend-paths": {
                     "type": "array",
@@ -96,22 +97,41 @@
                         ]
                     }
                 },
-                "delegated-dirs": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    },
-                    "description": "Directories used by drun to look in for a match for an exisiting xtaskfile"
-                }
-            },
-            "additionalProperties": false
+                "dirs": {
+                    "type": "object",
+                    "properties": {
+                        "bin": {
+                            "type": "string",
+                            "description": "The path to the bin directory",
+                            "default": "./.xtask/bin"
+                        },
+                        "etc": {
+                            "type": "string",
+                            "description": "The path to the etc directory",
+                            "default": "./.xtask/etc"
+                        },
+                        "scripts": {
+                            "type": "string",
+                            "description": "The path to the scripts directory",
+                            "default": "./.xtask/scripts"
+                        },
+                        "apps": {
+                            "type": "array",
+                            "items": {
+                                "type": "string",
+                                "description": "The path to an apps directory"
+                            },
+                            "default": ["./.xtask/apps"],
+                            "description": "A list of paths to apps directories."
+                        }
+                    }
+                },
+                "additionalProperties": false
+            }
         },
  
         "env": {
-            "type": "object",
-            "additionalProperties": {
-                "type": "string"
-            },
+             "$ref": "#/definitions/env",
             "description": "Environment variables to set for the command"
         },
         "dotenv": {
@@ -121,49 +141,56 @@
             },
             "description": "A list of .env files to load before running the task"
         },
-        "ssh": {
-            "hosts": {
-                "oneOf": [
-                    {
-                        "type": "object",
-                        "patternProperties": {
-                            "^[a-zA-Z0-9_-]+$": {
-                                "anyOf": [
-                                    {
-                                        "type": "string",
-                                        "description": "Host in the format of 'user@host[:port]'"
-                                    },
-                                    {
-                                        "type": "object",
-                                        "$ref": "#/definitions/host"
-                                    }
-                                ]
-                            }
-                        },
-                        "description": "A map of host names or IP addresses"
-                    }
-                ]
-            },
-            "files": {
-                "type": "array",
-                "items": {
-                    "type": "string"
+        "hosts": {
+            "oneOf": [
+                {
+                    "type": "object",
+                    "patternProperties": {
+                        "^[a-zA-Z0-9_-]+$": {
+                            "anyOf": [
+                                {
+                                    "type": "string",
+                                    "description": "Host in the format of 'user@host[:port]'"
+                                },
+                                {
+                                    "type": "object",
+                                    "$ref": "#/definitions/host"
+                                }
+                            ]
+                        }
+                    },
+                    "description": "A map of host names or IP addresses"
                 },
-                "description": "xsshfile files to include in the task context"
-            }
+                {
+                    "type": "array",
+                    "items": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "description": "An import using a relative path for an xhostfile."
+                            },
+                            {
+                                "type": "object",
+                                "$ref": "#/definitions/host"
+                            }
+                        ]
+                    },
+                    "description": "A list of hosts in the format of 'user@host[:port]' or host objects"
+                }
+            ]
         },
        
         "tasks": {
             "type": "object",
             "patternProperties": {
-                "^[a-zA-Z0-9_-]+$": {
+                "^[a-zA-Z0-9_-]|([a-zA-Z0-9_-]:[a-zA-Z0-9_-]+)$": {
                    "anyOf": [
+                        {
+                            "$ref": "#/definitions/task"
+                        },
                         {
                             "type": "string",
                             "description": "A task name that refers to another task"
-                        },
-                        {
-                            "$ref": "#/definitions/task"
                         }
                     ]
                 }
@@ -172,6 +199,45 @@
         }
     },
     "definitions": {
+        "env": {
+            "anyOf": [
+                {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                {
+                    "type": "array",
+                    "items": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "description": "The environment variable in the format of 'NAME=VALUE'"
+                            },
+                            {
+                                "type": "object",
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "description": "The name of the environment variable"
+                                    },
+                                    "value": {
+                                        "type": "string",
+                                        "description": "The value of the environment variable"
+                                    },
+                                    "secret": {
+                                        "type": "boolean",
+                                        "description": "Whether the environment variable is a secret",
+                                        "default": false
+                                    }
+                                }
+                            }
+                        ]
+                    }
+               }
+            ]
+        },
         "task": {
             "type": "object",
             "properties": {
@@ -184,11 +250,8 @@
                     "description": "A brief description of the task"
                 },
                 "env": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    },
-                    "description": "Environment variables to set for the command"
+                    "$ref": "#/definitions/env",
+                    "description": "Environment variables to set for the task"
                 },
                 "dotenv": {
                     "type":"array",
@@ -213,7 +276,6 @@
                                 "ruby",
                                 "ssh",
                                 "scp",
-                                "docker",
                                 "tmpl"
                             ],
                             "description": "The type of command to run"
@@ -238,24 +300,38 @@
                     "type": "array",
                     "items": {
                         "type": "string",
-                        "pattern": "^[a-zA-Z0-9_-]+$"
+                        "pattern": "^[a-zA-Z0-9_-:]+$"
                     },
                     "description": "A list of tasks that this task depends on"
-                },
-                "files": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    },
-                    "description": "Files to include in the task context"
                 },
                 "hosts": {
                     "type": "array",
                     "items": {
                         "type": "string",
-                        "pattern": "^[a-zA-Z0-9_-]+$"
+                        "pattern": "^[a-zA-Z0-9_-:.]+$"
                     },
                     "description": "A list of the names of hosts to run this task on"
+                },
+                "with": {
+                    "type": "object",
+                    "properties": {
+                        "files": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            },
+                            "description": "A list of files to copy (for scp tasks) in the format of 'source:destination'"
+                        }
+                    },
+                    "description": "Additional parameters for the task",
+                    "additionalProperties": {
+                        "type": [
+                            "string",
+                            "number",
+                            "boolean",
+                            "array"
+                        ]
+                    }
                 }
             }
         },
@@ -268,7 +344,7 @@
             "properties": {
                 "host": {
                     "type": "string",
-                    "description": "The name of the host"
+                    "description": "The cname or ip of the host"
                 },
                 "user": {
                     "type": "string",
@@ -333,7 +409,7 @@
                     "type": "string",
                     "description": "The identity file for SSH connections"
                 },
-                "password-name": {
+                "password": {
                     "type": "string",
                     "description": "The environment variable that contains the password for SSH connections"
                 },

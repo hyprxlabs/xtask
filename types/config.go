@@ -2,6 +2,8 @@ package types
 
 import (
 	"errors"
+	"os"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -26,12 +28,55 @@ type Config struct {
 }
 
 type Dirs struct {
-	Etc  string   `yaml:"etc,omitempty" mapstructure:"etc,omitempty"`
-	Apps []string `yaml:"apps,omitempty" mapstructure:"apps,omitempty"`
-	Walk []string `yaml:"walk,omitempty" mapstructure:"walk,omitempty"`
+	Etc     string   `yaml:"etc,omitempty" mapstructure:"etc,omitempty"`
+	Apps    []string `yaml:"apps,omitempty" mapstructure:"apps,omitempty"`
+	Scripts string   `yaml:"scripts,omitempty" mapstructure:"scripts,omitempty"`
+	Bin     string   `yaml:"bin,omitempty" mapstructure:"bin,omitempty"`
 }
 
 func (d *Dirs) UnmarshalYAML(node *yaml.Node) error {
+
+	if d == nil {
+		d = &Dirs{}
+	}
+
+	dotdir := os.Getenv("XTASK_DOT_DIR")
+	if len(dotdir) == 0 {
+		dotdir = "./.xtask"
+	}
+
+	if d.Etc == "" {
+		etc := os.Getenv("XTASK_ETC_DIR")
+		if len(etc) == 0 {
+			etc = dotdir + "/etc"
+		}
+		d.Etc = etc
+	}
+
+	if d.Apps == nil || len(d.Apps) == 0 {
+		apps := os.Getenv("XTASK_APPS_DIRS")
+		if len(apps) == 0 {
+			apps = dotdir + "/apps"
+		}
+		d.Apps = strings.Split(apps, string(os.PathListSeparator))
+	}
+
+	if d.Scripts == "" {
+		scripts := os.Getenv("XTASK_SCRIPTS_DIR")
+		if len(scripts) == 0 {
+			scripts = dotdir + "/scripts"
+		}
+		d.Scripts = scripts
+	}
+
+	if d.Bin == "" {
+		bin := os.Getenv("XTASK_BIN_DIR")
+		if len(bin) == 0 {
+			bin = dotdir + "/bin"
+		}
+		d.Bin = bin
+	}
+
 	if node.Kind != yaml.MappingNode {
 		return errors.New("dirs must be a mapping")
 	}
@@ -46,6 +91,7 @@ func (d *Dirs) UnmarshalYAML(node *yaml.Node) error {
 
 		switch key {
 		case "etc":
+
 			if valueNode.Kind != yaml.ScalarNode {
 				return errors.New("expected string value for dirs.etc")
 			}
@@ -62,18 +108,16 @@ func (d *Dirs) UnmarshalYAML(node *yaml.Node) error {
 			} else {
 				return errors.New("expected string or sequence of strings for dirs.apps")
 			}
-		case "walk":
-			if valueNode.Kind == yaml.SequenceNode {
-				var walk []string
-				if err := valueNode.Decode(&walk); err != nil {
-					return err
-				}
-				d.Walk = walk
-			} else if valueNode.Kind == yaml.ScalarNode {
-				d.Walk = []string{valueNode.Value}
-			} else {
-				return errors.New("expected string or sequence of strings for dirs.walk")
+		case "scripts":
+			if valueNode.Kind != yaml.ScalarNode {
+				return errors.New("expected string value for dirs.scripts")
 			}
+			d.Scripts = valueNode.Value
+		case "bin":
+			if valueNode.Kind != yaml.ScalarNode {
+				return errors.New("expected string value for dirs.bin")
+			}
+			d.Bin = valueNode.Value
 		default:
 			return errors.New("unknown key in dirs: " + key)
 		}

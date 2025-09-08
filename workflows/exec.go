@@ -3,6 +3,7 @@ package workflows
 import (
 	"errors"
 	"os"
+	"strings"
 
 	"github.com/hyprxlabs/go/exec"
 )
@@ -17,7 +18,8 @@ func (ws *Workflow) Exec(args []string) error {
 		return errors.New("XTASK_DIR is not set")
 	}
 
-	cmd := exec.CommandContext(ws.Context, args[0]).WithArgs(args[1:]...)
+	os.Stdout.WriteString(strings.Join(args, " ") + "\n")
+	cmd := exec.NewContext(ws.Context, args[0], args[1:]...)
 	cmd.Dir = dir
 
 	cmd.WithEnvMap(ws.Env.ToMap())

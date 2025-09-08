@@ -1,0 +1,5 @@
+
+tasks:
+  build:before: echo "web build before"
+
+  build: echo "web build"

@@ -16,8 +16,9 @@ import (
 
 // execCmd represents the exec command
 var execCmd = &cobra.Command{
-	Use:   "exec [flags] [command] [args]",
-	Short: "executes a command using the environment variables configured in the xtaskfile",
+	Use:     "exec [flags] [command] [args]",
+	Aliases: []string{"x"},
+	Short:   "Executes a command using the environment variables configured in the xtaskfile",
 	Long: `Executes a command using the environment variables configured in the xtaskfile
 	and does not run any tasks.`,
 	DisableFlagParsing: true,
@@ -50,6 +51,7 @@ var execCmd = &cobra.Command{
 		flags.StringP("dir", "d", env.Get("XTASK_DIR"), "Directory to run the task in (default is current directory)")
 		flags.StringArrayP("dotenv", "E", []string{}, "List of dotenv files to load")
 		flags.StringToStringP("env", "e", map[string]string{}, "List of environment variables to set")
+		flags.StringP("context", "c", env.Get("XTASK_CONTEXT"), "Context to use.")
 
 		cmdArgs := []string{}
 		remainingArgs := []string{}

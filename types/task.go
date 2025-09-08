@@ -27,6 +27,7 @@ type Task struct {
 type Tasks map[string]Task
 
 func (t *Tasks) UnmarshalYAML(node *yaml.Node) error {
+
 	if node.Kind != yaml.MappingNode {
 		return nil
 	}
@@ -57,14 +58,15 @@ func (t *Tasks) UnmarshalYAML(node *yaml.Node) error {
 
 		if valueNode.Kind == yaml.ScalarNode {
 			task = Task{
-				Id:     key,
-				Run:    &valueNode.Value,
-				Env:    Env{},
-				With:   map[string]interface{}{},
-				Dotenv: []string{},
-				Args:   []string{},
-				Needs:  []string{},
-				Hosts:  []string{},
+				Id:        key,
+				Run:       &valueNode.Value,
+				Env:       Env{},
+				With:      map[string]interface{}{},
+				Dotenv:    []string{},
+				Args:      []string{},
+				Needs:     []string{},
+				Hosts:     []string{},
+				Predicate: nil,
 			}
 
 			(*t)[key] = task
