@@ -7,21 +7,24 @@ import (
 	"os"
 
 	"github.com/hyprxlabs/go/env"
-	"github.com/hyprxlabs/xtask/internal/workflow"
+	"github.com/hyprxlabs/xtask/types"
+	"github.com/hyprxlabs/xtask/workflows"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
 
 // runCmd represents the run command
 var runCmd = &cobra.Command{
-	Use:   "run",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Use:   "run [OPTIONS] [TASK...] [--] [REMAINING_ARGS...]",
+	Short: "Runs a single task from the xtaskfile and may pass remaining arguments to it.",
+	Long: `Run a single task from the xtaskfile.
+Additional arguments may be passed to the task. The -- separator is may be used to 
+force all subsequent arguments to be treated as remaining arguments.`,
+	Example: `xtask run test
+  xtask run -c CONTEXTA -e MY_VAR=test build -- --no-cache
+  xtask run -e ENV=production deploy --tag v1.0.0`,
+	Aliases:            []string{"r"},
+	Args:               cobra.ArbitraryArgs,
 	DisableFlagParsing: true,
 	Run: func(cmd *cobra.Command, a []string) {
 
@@ -53,42 +56,22 @@ to quickly create a Cobra application.`,
 		flags.StringP("dir", "d", env.Get("XTASK_DIR"), "Directory to run the task in (default is current directory)")
 		flags.StringArrayP("dotenv", "E", []string{}, "List of dotenv files to load")
 		flags.StringToStringP("env", "e", map[string]string{}, "List of environment variables to set")
+		flags.StringP("context", "c", env.Get("XTASK_CONTEXT"), "Context to use.")
 
 		targets := []string{}
 		cmdArgs := []string{}
 		remainingArgs := []string{}
 		size := len(args)
 		inRemaining := false
-		inTargets := false
 		for i := 0; i < size; i++ {
 			n := args[i]
 			if n == "--" {
-				inTargets = false
 				inRemaining = true
 				continue
 			}
 
 			if inRemaining {
-				inTargets = false
 				remainingArgs = append(remainingArgs, args[i])
-				continue
-			}
-
-			if inTargets {
-				if n == "--" {
-					inTargets = false
-					inRemaining = true
-					continue
-				}
-
-				if len(n) > 0 && n[0] == '-' {
-					inTargets = false
-					inRemaining = true
-					remainingArgs = append(remainingArgs, n)
-					continue
-				}
-
-				targets = append(targets, args[i])
 				continue
 			}
 
@@ -103,8 +86,8 @@ to quickly create a Cobra application.`,
 				continue
 			}
 
-			inTargets = true
 			targets = append(targets, n)
+			inRemaining = true
 		}
 
 		if len(targets) == 0 {
@@ -129,17 +112,39 @@ to quickly create a Cobra application.`,
 		dotenvFiles, _ := flags.GetStringArray("dotenv")
 		envVars, _ := flags.GetStringToString("env")
 
-		err = workflow.Run(workflow.Params{
-			Args:                remainingArgs,
-			Tasks:               targets,
-			Timeout:             0,
-			CommandSubstitution: true,
-			Context:             cmd.Context(),
-			Command:             "run",
-			File:                file,
-			Dotenv:              dotenvFiles,
-			Env:                 envVars,
-		})
+		tf := types.NewXTaskfile()
+
+		err = tf.DecodeYAMLFile(file)
+		tf.Path = file
+
+		if err != nil {
+			cmd.PrintErrf("Error loading xtaskfile: %v\n", err)
+			os.Exit(1)
+		}
+
+		if len(dotenvFiles) > 0 {
+			tf.Dotenv = append(tf.Dotenv, dotenvFiles...)
+		}
+
+		if len(envVars) > 0 {
+			if tf.Env == nil {
+				tf.Env = types.NewEnv()
+			}
+
+			for k, v := range envVars {
+				tf.Env.Set(k, v)
+			}
+		}
+
+		wf := workflows.NewWorkflow()
+
+		err = wf.Load(*tf)
+		if err != nil {
+			cmd.PrintErrf("Error loading xtaskfile: %v\n", err)
+			os.Exit(1)
+		}
+
+		err = wf.Run(targets, remainingArgs)
 
 		if err != nil {
 			cmd.PrintErrf("Error: %v\n", err)
@@ -154,7 +159,7 @@ func init() {
 	rootCmd.AddCommand(runCmd)
 
 	runCmd.Flags().StringArrayP("dotenv", "E", []string{}, "List of dotenv files to load")
-	runCmd.Flags().StringToStringP("env", "e", map[string]string{}, "List of environment variables to set")
+	runCmd.Flags().StringToStringP("env", "e", map[string]string{}, "List of environment variables to  ")
 
 	// Here you will define your flags and configuration settings.
 

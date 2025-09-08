@@ -5,22 +5,22 @@ package cmd
 
 import (
 	"os"
+	"slices"
+	"strings"
 
 	"github.com/hyprxlabs/go/env"
+	"github.com/hyprxlabs/xtask/versions"
 	"github.com/spf13/cobra"
 )
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:     "task",
+	Use:     "xtask",
 	Short:   "a cross platform task runner",
-	Version: Version,
-	Long: `A longer description that spans multiple lines and likely contains
-examples and usage of using your application. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Version: versions.Version,
+	Long: `A cross platform task runner
+	
+	`,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 }
@@ -29,56 +29,64 @@ to quickly create a Cobra application.`,
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
 	args := os.Args
-	commands := []string{"run", "ls", "exec"}
-	if len(args) == 1 {
-		rootCmd.SetArgs([]string{"run"})
-	} else {
-		if len(args) == 2 {
-			flag := args[1]
-			if flag == "--help" || flag == "-h" || flag == "-v" || flag == "--version" {
-				rootCmd.SetArgs([]string{flag})
-			} else {
-				validCommand := false
-				for _, cmd := range commands {
-					if flag == cmd {
-						rootCmd.SetArgs([]string{cmd})
-						validCommand = true
-						break
-					}
-				}
+	commands := []string{
+		"audit",
+		"b",
+		"build",
+		"completion",
+		"deploy",
+		"destroy",
+		"down",
+		"exec",
+		"help",
+		"install",
+		"many",
+		"pack",
+		"publish",
+		"ls",
+		"lc",
+		"lifecycle",
+		"run",
+		"runlc",
+		"test",
+		"t",
+		"uninstall",
+		"upgrade",
+		"up",
+		"version",
+		"x"}
 
-				if !validCommand {
-					rootCmd.SetArgs([]string{"run", flag})
-				}
-			}
-		} else {
+	hasCommand := false
+	hasPossibleTarget := false
 
-			hasCommand := false
-
-			for i := 0; i < len(args); i++ {
-				arg := args[i]
-				switch arg {
-				case "--file", "-f":
-					i++
-
-				case "--dir", "-d":
-					i++
-				case "xtask":
-					continue
-				case "ls":
-					hasCommand = true
-				case "run":
-					hasCommand = true
-				case "exec":
-					hasCommand = true
-				}
-			}
-			if !hasCommand {
-				nargs := []string{"run"}
-				nargs = append(nargs, args[1:]...)
-				rootCmd.SetArgs(nargs)
-			}
+	for _, arg := range args {
+		if slices.Contains(commands, arg) {
+			hasCommand = true
 		}
+
+		if !strings.HasPrefix(arg, "-") {
+			hasPossibleTarget = true
+		}
+	}
+
+	if len(args) == 2 {
+		if args[1] == "-h" || args[1] == "--help" || args[1] == "help" {
+			rootCmd.Help()
+			os.Exit(0)
+		}
+
+		if args[1] == "-v" || args[1] == "--version" || args[1] == "version" {
+			os.Stdout.WriteString("xtask version " + versions.Version + "\n")
+			os.Exit(0)
+		}
+	}
+
+	if !hasCommand && hasPossibleTarget {
+		args = append([]string{args[0], "run"}, args[1:]...)
+		os.Args = args
+
+		os.Stdout.WriteString(strings.Join(os.Args[1:], " ") + "\n")
+		rootCmd.SetArgs(args[1:])
 	}
 
 	err := rootCmd.Execute()
@@ -90,6 +98,7 @@ func Execute() {
 func init() {
 	file := env.Get("XTASK_FILE")
 	dir := env.Get("XTASK_DIR")
+	context := env.Get("XTASK_CONTEXT")
 
 	// Here you will define your flags and configuration settings.
 	// Cobra supports persistent flags, which, if defined here,
@@ -99,6 +108,7 @@ func init() {
 
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
-	rootCmd.PersistentFlags().StringP("file", "f", file, "Path to the YAML file")
-	rootCmd.PersistentFlags().StringP("dir", "d", dir, "Directory to run the task in (default is current directory)")
+	rootCmd.PersistentFlags().StringP("file", "f", file, "Path to the YAML file.")
+	rootCmd.PersistentFlags().StringP("dir", "d", dir, "Directory to run the task in (default is current directory).")
+	rootCmd.PersistentFlags().StringP("context", "c", context, "The context to use. If not set, the 'default' context is used.")
 }
